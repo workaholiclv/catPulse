@@ -1,5 +1,4 @@
 import requests
-import datetime
 
 _symbol_to_id_cache = {}
 
@@ -33,6 +32,16 @@ def get_price_data(coin_id):
         return response.json()
     return None
 
+def get_top_trending_coins(limit=5):
+    url = "https://api.coingecko.com/api/v3/search/trending"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        coins = data.get('coins', [])
+        symbols = [coin['item']['symbol'].upper() for coin in coins[:limit]]
+        return symbols
+    return []
+
 def get_analysis(coins):
     results = []
     for coin in coins:
@@ -62,10 +71,27 @@ def get_profit(coins):
         if not coin_id:
             results.append(f"⚠️ {coin}: Nav atrasts CoinGecko ID.")
             continue
-        # Пример простой логики по прибыли, здесь можно расширить с реальной аналитикой
-        results.append(
-            f"💡 {coin}: Ieteikums — ilga pozīcija (LONG) ja cena pieaug, īsa pozīcija (SHORT) ja krīt."
-        )
+        # Простая логика для примера, можно расширить
+        data = get_price_data(coin_id)
+        if not data:
+            results.append(f"⚠️ {coin}: Neizdevās iegūt datus.")
+            continue
+        prices = [p[1] for p in data.get('prices', [])]
+        if len(prices) < 2:
+            results.append(f"⚠️ {coin}: Nepietiekami dati profita aprēķinam.")
+            continue
+        start_price = prices[0]
+        end_price = prices[-1]
+        change_pct = ((end_price - start_price) / start_price) * 100
+
+        if change_pct > 1:
+            advice = "ilga pozīcija (LONG) ieteicama 🔥"
+        elif change_pct < -1:
+            advice = "īsa pozīcija (SHORT) ieteicama ❄️"
+        else:
+            advice = "nav skaidras tendences, uzmanies ⚠️"
+
+        results.append(f"💡 {coin}: {advice} ({change_pct:.2f}% pārmaiņas pēdējās 24h)")
     return "\n".join(results)
 
 def get_strategy(coins):
