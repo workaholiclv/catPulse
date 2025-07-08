@@ -1,21 +1,13 @@
 import datetime
 import requests
-import os
-
-COIN_SYMBOLS_CACHE = {}
 
 def get_trending_coins(limit=5):
-    """Получает трендовые монеты с CoinGecko (поисковые тренды)."""
     url = "https://api.coingecko.com/api/v3/search/trending"
-    response = requests.get(url)
-    response.raise_for_status()
-
-    data = response.json()["coins"]
-    trending = [coin["item"]["id"] for coin in data[:limit]]
-    return trending
+    r = requests.get(url)
+    r.raise_for_status()
+    return [item["item"]["id"] for item in r.json()["coins"][:limit]]
 
 def get_price_data(coins):
-    """Получает цены и изменение за 24ч для списка монет."""
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
         "vs_currency": "usd",
@@ -25,38 +17,53 @@ def get_price_data(coins):
         "page": 1,
         "sparkline": False
     }
-
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    return response.json()
+    r = requests.get(url)
+    r.raise_for_status()
+    return r.json()
 
 def get_analysis(coins=None):
-    """Основная функция: получает анализ по трендовым или заданным монетам."""
-    # Если монеты не переданы явно — берём из трендов
     if coins is None:
         coins = get_trending_coins()
-
     data = get_price_data(coins)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    text = f"📊 Анализ рынка на {today}:\n\n"
+    text = f"📊 Анализ на {today}:
 
+"
     for coin in data:
-        coin_id = coin["id"]
-        symbol = coin["symbol"].upper()
-        COIN_SYMBOLS_CACHE[coin_id] = symbol
-
+        sym = coin["symbol"].upper()
         price = coin["current_price"]
-        change = coin["price_change_percentage_24h"]
-
-        if change is None:
+        ch = coin.get("price_change_percentage_24h")
+        if ch is None:
             trend = "❓ Нет данных"
-        elif change > 2:
-            trend = "📈 Явный рост"
-        elif change < -2:
+        elif ch > 2:
+            trend = "📈 Рост"
+        elif ch < -2:
             trend = "🔻 Падение"
         else:
             trend = "⚖️ Нейтрально"
+        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}
+"
+    return text
 
-        text += f"{symbol}: ${price:.2f} ({change:+.2f}%) — {trend}\n"
+def get_profit_suggestion(coins=None):
+    if coins is None:
+        coins = get_trending_coins()
+    data = get_price_data(coins)
+    text = "📈 Оценка потенциала:
 
+"
+    for c in data:
+        sym = c["symbol"].upper()
+        price = c["current_price"]
+        ch = c.get("price_change_percentage_24h")
+        if ch is None:
+            signal = "❓ Недостаточно данных"
+        elif ch > 3:
+            signal = "🟢 LONG"
+        elif ch < -3:
+            signal = "🔴 SHORT"
+        else:
+            signal = "⚪ Нейтрально"
+        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}
+"
     return text
