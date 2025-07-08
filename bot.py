@@ -1,75 +1,82 @@
 import os
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from crypto import get_analysis, get_profit_suggestion
+from crypto import get_analysis, get_profit, get_strategy
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Убедись, что переменная окружения правильно задана
+# Glabājam lietotāja monētas
+user_coins = {}
 
-user_coins = {}  # user_id -> список символов монет
-
-def start(update: Update, context: CallbackContext):
-    welcome_text = (
-        "Sveiki! Es esmu Tavs CryptoBot.\n\n"
-        "Komandas:\n"
-        "/setcoins SYMBOLS - iestata monētas (var vairākas caur komatu, piem. BTC,ETH,CRO)\n"
-        "/analyze - rāda pašreizējo analīzi par iestatītajām monētām\n"
-        "/profit - rāda ieteikumus par ilgo vai īso pozīciju\n"
-        "/help - palīdzība\n"
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(
+        "👋 Sveiki! Esmu kripto-kaķis🐈‍⬛, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
+        "📌 *Pieejamās komandas:*\n"
+        "💰 /setcoins – iestata monētas (var vairākas caur komatu, piem. BTC,ETH,CRO)\n"
+        "📈 /analyze – rāda pašreizējo analīzi par iestatītajām monētām\n"
+        "📊 /profit – rāda ieteikumus par ilgo vai īso pozīciju\n"
+        "🧠 /strategy – parāda investīciju stratēģijas\n"
+        "❓ /help – palīdzība",
+        parse_mode='Markdown'
     )
-    update.message.reply_text(welcome_text)
 
-def help_command(update: Update, context: CallbackContext):
-    help_text = (
-        "Lietošana:\n"
-        "/setcoins SYMBOLS - iestata monētas tavu analīzei\n"
-        "/analyze - saņem analīzi par šīm monētām\n"
-        "/profit - saņem ieteikumus LONG/SHORT stratēģijām\n"
-        "Piemērs:\n"
-        "/setcoins BTC,ETH,CRO"
-    )
-    update.message.reply_text(help_text)
+def help_command(update: Update, context: CallbackContext) -> None:
+    start(update, context)
 
-def setcoins(update: Update, context: CallbackContext):
+def set_coins(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
-    if not context.args:
-        update.message.reply_text("Lūdzu, norādi vismaz vienu monētu simbolu, piemēram: /setcoins BTC,ETH")
-        return
-    # Парсим символы, удаляем пробелы, приводим к верхнему регистру
-    text = " ".join(context.args)
-    symbols = [s.strip().upper() for s in text.split(",") if s.strip()]
-    user_coins[user_id] = symbols
-    update.message.reply_text(f"Iestatītas monētas: {', '.join(symbols)}\nLai saņemtu analīzi, izmanto /analyze")
+    if context.args:
+        coins = [coin.strip().upper() for coin in ",".join(context.args).split(",")]
+        user_coins[user_id] = coins
+        update.message.reply_text(f"💰 Iestatītas monētas: {', '.join(coins)}")
 
-def analyze(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    symbols = user_coins.get(user_id)
-    if not symbols:
-        update.message.reply_text("Monētas nav iestatītas. Izmanto /setcoins komandu, piemēram: /setcoins BTC,ETH")
-        return
-    text = get_analysis(symbols)
-    update.message.reply_text(text)
+        # automātiski parādīt analīzi un profita iespējas
+        analysis = get_analysis(coins)
+        profit = get_profit(coins)
+        update.message.reply_text(f"📈 Analīze:\n{analysis}")
+        update.message.reply_text(f"📊 Profita iespējas:\n{profit}")
+    else:
+        update.message.reply_text("⚠️ Lūdzu, ievadi monētas. Piemērs: /setcoins BTC,ETH")
 
-def profit(update: Update, context: CallbackContext):
+def analyze(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
-    symbols = user_coins.get(user_id)
-    if not symbols:
-        update.message.reply_text("Monētas nav iestatītas. Izmanto /setcoins komandu, piemēram: /setcoins BTC,ETH")
+    coins = user_coins.get(user_id)
+    if not coins:
+        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
         return
-    text = get_profit_suggestion(symbols)
-    update.message.reply_text(text)
+    analysis = get_analysis(coins)
+    update.message.reply_text(f"📈 Analīze:\n{analysis}")
+
+def profit(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
+    coins = user_coins.get(user_id)
+    if not coins:
+        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
+        return
+    profit = get_profit(coins)
+    update.message.reply_text(f"📊 Profita iespējas:\n{profit}")
+
+def strategy(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
+    coins = user_coins.get(user_id)
+    if not coins:
+        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
+        return
+    strategies = get_strategy(coins)
+    update.message.reply_text(f"🧠 Stratēģijas:\n{strategies}")
 
 def main():
-    if not TOKEN:
-        print("ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
-        return
-    updater = Updater(token=TOKEN, use_context=True)
-    dp = updater.dispatcher
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
+        raise ValueError("ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CommandHandler("setcoins", setcoins))
-    dp.add_handler(CommandHandler("analyze", analyze))
-    dp.add_handler(CommandHandler("profit", profit))
+    updater = Updater(token=token, use_context=True)
+    dispatcher = updater.dispatcher
+
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
+    dispatcher.add_handler(CommandHandler("setcoins", set_coins))
+    dispatcher.add_handler(CommandHandler("analyze", analyze))
+    dispatcher.add_handler(CommandHandler("profit", profit))
+    dispatcher.add_handler(CommandHandler("strategy", strategy))
 
     updater.start_polling()
     updater.idle()
