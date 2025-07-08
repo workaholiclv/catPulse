@@ -1,80 +1,75 @@
 import os
-from telegram.ext import Updater, CommandHandler
-from crypto import get_analysis, get_profit_suggestion, get_trending_coins
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+from crypto import get_analysis, get_profit_suggestion
 
-user_coins = {}
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Убедись, что переменная окружения правильно задана
 
-def start(update, context):
+user_coins = {}  # user_id -> список символов монет
+
+def start(update: Update, context: CallbackContext):
     welcome_text = (
-        "👋 Sveiki! Esmu kripto-kaķis🐈‍⬛, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
-         "📌 Pieejamās komandas:\n"
-        "/start — parādīt šo sveicienu\n"
-        "/analyze — saņemt pašreizējo analīzi par populārākajām vai tavām monētām\n"
-        "/profit — ieteikumi ilgajām (long) un īsajām (short) pozīcijām\n"
-        "/setcoins [monētas] — iestatīt savas monētas analīzei\n"
-        "/strategy — ieguldījumu stratēģiju apraksts\n\n"
-        "⚡ Piemērs lietošanai:\n"
-        "/setcoins bitcoin, ethereum, dogecoin\n"
-        "Pēc monētu iestatīšanas es uzreiz nosūtīšu analīzi un tirdzniecības signālus.\n\n"
-        "Ja monētas netiek iestatītas, analīze tiek veikta par aktuālajām tendencēm."
+        "Sveiki! Es esmu Tavs CryptoBot.\n\n"
+        "Komandas:\n"
+        "/setcoins SYMBOLS - iestata monētas (var vairākas caur komatu, piem. BTC,ETH,CRO)\n"
+        "/analyze - rāda pašreizējo analīzi par iestatītajām monētām\n"
+        "/profit - rāda ieteikumus par ilgo vai īso pozīciju\n"
+        "/help - palīdzība\n"
     )
-    context.bot.send_message(chat_id=update.effective_chat.id, text=welcome_text)
+    update.message.reply_text(welcome_text)
 
-def analyze(update, context):
-    chat_id = update.effective_chat.id
-    coins = user_coins.get(chat_id)
-    text = get_analysis(coins)
-    context.bot.send_message(chat_id=chat_id, text=text)
-
-def profit(update, context):
-    chat_id = update.effective_chat.id
-    coins = user_coins.get(chat_id)
-    text = get_profit_suggestion(coins)
-    context.bot.send_message(chat_id=chat_id, text=text)
-
-def set_user_coins(update, context):
-    chat_id = update.effective_chat.id
-    if context.args:
-        coins_str = " ".join(context.args)
-        coins_list = [coin.strip() for coin in coins_str.split(",") if coin.strip()]
-        if coins_list:
-            user_coins[chat_id] = coins_list
-            context.bot.send_message(chat_id, f"✅ Monētas iestatītas: {', '.join(coins_list)}")
-            analysis = get_analysis(coins_list)
-            profit = get_profit_suggestion(coins_list)
-            context.bot.send_message(chat_id, analysis)
-            context.bot.send_message(chat_id, profit)
-            return
-    context.bot.send_message(chat_id, "⚠️ Lūdzu, norādi monētas pēc komandas, piemēram:\n/setcoins bitcoin, ethereum")
-
-def strategy(update, context):
-    text = (
-        "📊 Ieguldījumu stratēģijas:\n\n"
-        "1️⃣ LONG (Pozīcija ilgtermiņā):\n"
-        "- Pērk aktīvu, cerot uz tā cenu pieaugumu.\n"
-        "- Stop-loss parasti tiek iestatīts 5-10% zem pirkuma cenas.\n"
-        "- Take-profit var iestatīt +10-30% atkarībā no mērķa.\n\n"
-        "2️⃣ SHORT (Pozīcija īstermiņā, cenu krituma gadījumā):\n"
-        "- Aizņemas aktīvu pārdošanai, cerot to vēlāk atpirkt lētāk.\n"
-        "- Stop-loss ierobežo zaudējumus, piemēram, +5-10% virs pārdošanas cenas.\n"
-        "- Take-profit fiksē peļņu cenu krišanas gadījumā, piemēram, -10-30%.\n\n"
-        "⚠️ Vienmēr izmanto stop-loss, lai kontrolētu riskus.\n"
-        "🧠 Pirms stratēģiju izmantošanas rūpīgi analizē tirgu un jaunākās ziņas."
+def help_command(update: Update, context: CallbackContext):
+    help_text = (
+        "Lietošana:\n"
+        "/setcoins SYMBOLS - iestata monētas tavu analīzei\n"
+        "/analyze - saņem analīzi par šīm monētām\n"
+        "/profit - saņem ieteikumus LONG/SHORT stratēģijām\n"
+        "Piemērs:\n"
+        "/setcoins BTC,ETH,CRO"
     )
-    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    update.message.reply_text(help_text)
+
+def setcoins(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    if not context.args:
+        update.message.reply_text("Lūdzu, norādi vismaz vienu monētu simbolu, piemēram: /setcoins BTC,ETH")
+        return
+    # Парсим символы, удаляем пробелы, приводим к верхнему регистру
+    text = " ".join(context.args)
+    symbols = [s.strip().upper() for s in text.split(",") if s.strip()]
+    user_coins[user_id] = symbols
+    update.message.reply_text(f"Iestatītas monētas: {', '.join(symbols)}\nLai saņemtu analīzi, izmanto /analyze")
+
+def analyze(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    symbols = user_coins.get(user_id)
+    if not symbols:
+        update.message.reply_text("Monētas nav iestatītas. Izmanto /setcoins komandu, piemēram: /setcoins BTC,ETH")
+        return
+    text = get_analysis(symbols)
+    update.message.reply_text(text)
+
+def profit(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    symbols = user_coins.get(user_id)
+    if not symbols:
+        update.message.reply_text("Monētas nav iestatītas. Izmanto /setcoins komandu, piemēram: /setcoins BTC,ETH")
+        return
+    text = get_profit_suggestion(symbols)
+    update.message.reply_text(text)
 
 def main():
-    token = os.getenv("BOT_TOKEN")
-    if not token:
-        raise ValueError("Nav iestatīta BOT_TOKEN mainīgā vide. Pievieno sava bota tokenu!")
-    updater = Updater(token=token, use_context=True)
+    if not TOKEN:
+        print("ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
+        return
+    updater = Updater(token=TOKEN, use_context=True)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("setcoins", setcoins))
     dp.add_handler(CommandHandler("analyze", analyze))
     dp.add_handler(CommandHandler("profit", profit))
-    dp.add_handler(CommandHandler("setcoins", set_user_coins))
-    dp.add_handler(CommandHandler("strategy", strategy))
 
     updater.start_polling()
     updater.idle()
