@@ -26,9 +26,7 @@ def get_analysis(coins=None):
         coins = get_trending_coins()
     data = get_price_data(coins)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    text = f"📊 Анализ на {today}:
-
-"
+    text = f"📊 Анализ на {today}:\n\n"
     for coin in data:
         sym = coin["symbol"].upper()
         price = coin["current_price"]
@@ -41,17 +39,14 @@ def get_analysis(coins=None):
             trend = "🔻 Падение"
         else:
             trend = "⚖️ Нейтрально"
-        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}
-"
+        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}\n"
     return text
 
 def get_profit_suggestion(coins=None):
     if coins is None:
         coins = get_trending_coins()
     data = get_price_data(coins)
-    text = "📈 Оценка потенциала:
-
-"
+    text = "📈 Оценка потенциала:\n\n"
     for c in data:
         sym = c["symbol"].upper()
         price = c["current_price"]
@@ -64,6 +59,5 @@ def get_profit_suggestion(coins=None):
             signal = "🔴 SHORT"
         else:
             signal = "⚪ Нейтрально"
-        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}
-"
+        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}\n"
     return text
