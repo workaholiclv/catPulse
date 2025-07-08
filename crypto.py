@@ -55,7 +55,7 @@ def get_analysis(symbols=None):
         return "❌ Nav atrastas derīgas monētas pēc dotajiem simboliem."
     data = get_price_data(coins)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    text = f"📊 Analīze uz {today}:\n"
+    text = f"📊 Analīze uz {today}:\n\n"
     lines = []
     for coin in data:
         sym = coin.get("symbol", "???").upper()
@@ -70,7 +70,7 @@ def get_analysis(symbols=None):
         else:
             trend = "⚖️ Stabils"
         lines.append(f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}")
-    text += "\n".join(lines)
+    text += "\n\n".join(lines)
     return text
 
 def get_profit_suggestion(symbols=None):
@@ -81,7 +81,7 @@ def get_profit_suggestion(symbols=None):
     if not coins:
         return "❌ Nav atrastas derīgas monētas pēc dotajiem simboliem."
     data = get_price_data(coins)
-    text = "📈 Potenciāls:\n"
+    text = "📈 Potenciāls:\n\n"
     lines = []
     for coin in data:
         sym = coin.get("symbol", "???").upper()
@@ -96,5 +96,5 @@ def get_profit_suggestion(symbols=None):
         else:
             signal = "⚪ Neitrāls"
         lines.append(f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}")
-    text += "\n".join(lines)
+    text += "\n\n".join(lines)
     return text
