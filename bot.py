@@ -1,53 +1,49 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from crypto import get_analysis, get_profit_suggestion
+from telegram.ext import Updater, CommandHandler
+from crypto import get_analysis, get_profit_suggestion, get_trending_coins
 
-CUSTOM_COINS = []
+user_coins = {}
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "👋 Привет! Я крипто‑бот.
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="🤖 Привет! Я крипто-кот. Команды:\n"
+                                  "/analyze — анализ монет\n"
+                                  "/profit — идеи для LONG/SHORT\n"
+                                  "/setcoins BTC ETH — задать монеты")
 
-"
-        "Команды:
-"
-        "/analysis — анализ рынка
-"
-        "/profit — оценки прибыли и сигналы
-"
-        "/setcoins BTC ETH — задать свои монеты
-"
-    )
-    await update.message.reply_text(text)
-
-async def analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    coins = CUSTOM_COINS if CUSTOM_COINS else None
+def analyze(update, context):
+    chat_id = update.effective_chat.id
+    coins = user_coins.get(chat_id)
     text = get_analysis(coins)
-    await update.message.reply_text(text)
+    context.bot.send_message(chat_id=chat_id, text=text)
 
-async def profit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    coins = CUSTOM_COINS if CUSTOM_COINS else None
+def profit(update, context):
+    chat_id = update.effective_chat.id
+    coins = user_coins.get(chat_id)
     text = get_profit_suggestion(coins)
-    await update.message.reply_text(text)
+    context.bot.send_message(chat_id=chat_id, text=text)
 
-async def setcoins(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global CUSTOM_COINS
-    coins = [c.lower() for c in context.args]
+def set_user_coins(update, context):
+    chat_id = update.effective_chat.id
+    coins = context.args
     if coins:
-        CUSTOM_COINS = coins
-        await update.message.reply_text(f"✅ Монеты установлены: {', '.join(CUSTOM_COINS).upper()}")
+        user_coins[chat_id] = coins
+        context.bot.send_message(chat_id, f"✅ Монеты заданы: {' '.join(coins)}")
     else:
-        await update.message.reply_text("⚠️ Укажи монеты: /setcoins BTC ETH")
+        context.bot.send_message(chat_id, "⚠️ Укажи монеты после команды, например:\n/setcoins BTC ETH")
 
 def main():
     token = os.getenv("BOT_TOKEN")
-    app = ApplicationBuilder().token(token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("analysis", analysis))
-    app.add_handler(CommandHandler("profit", profit))
-    app.add_handler(CommandHandler("setcoins", setcoins))
-    app.run_polling()
+    updater = Updater(token=token, use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("analyze", analyze))
+    dp.add_handler(CommandHandler("profit", profit))
+    dp.add_handler(CommandHandler("setcoins", set_user_coins))
+
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
