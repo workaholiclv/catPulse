@@ -28,7 +28,6 @@ def set_coins(update: Update, context: CallbackContext) -> None:
         user_coins[user_id] = coins
         update.message.reply_text(f"💰 Iestatītas monētas: {', '.join(coins)}")
 
-        # automātiski parādīt analīzi un profita iespējas
         analysis = get_analysis(coins)
         profit = get_profit(coins)
         update.message.reply_text(f"📈 Analīze:\n{analysis}")
