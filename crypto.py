@@ -1,66 +1,75 @@
-import datetime
 import requests
+import datetime
 
-def get_trending_coins(limit=5):
+def get_trending_coins():
+    """Iegūst populārākās monētas no CoinGecko (ID formātā)"""
     url = "https://api.coingecko.com/api/v3/search/trending"
-    r = requests.get(url)
-    r.raise_for_status()
-    return [item["item"]["id"] for item in r.json()["coins"][:limit]]
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        coins = [item['item']['id'] for item in data.get('coins', [])]
+        return coins
+    return []
 
 def get_price_data(coins):
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "usd",
-        "ids": ",".join(coins),
-        "order": "market_cap_desc",
-        "per_page": len(coins),
-        "page": 1,
-        "sparkline": False
-    }
-    try:
-        r = requests.get(url, params=params)
-        r.raise_for_status()
-        return r.json()
-    except requests.exceptions.RequestException as e:
+    """
+    Iegūst cenu un izmaiņu datus 24h periodā par dotajām monētām
+    coins — saraksts ar monētu ID (piemēram, ['bitcoin', 'ethereum'])
+    """
+    if not coins:
         return []
 
+    ids = ",".join(coins)
+    url = (
+        f"https://api.coingecko.com/api/v3/coins/markets"
+        f"?vs_currency=usd&ids={ids}&order=market_cap_desc&per_page=250&page=1&sparkline=false"
+    )
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    return []
+
 def get_analysis(coins=None):
-    if coins is None:
+    if not coins:
         coins = get_trending_coins()
     data = get_price_data(coins)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    text = f"📊 Анализ на {today}:\n\n"
+    text = f"📊 Analīze uz {today}:\n"
+    lines = []
     for coin in data:
         sym = coin.get("symbol", "???").upper()
         price = coin.get("current_price", 0)
         ch = coin.get("price_change_percentage_24h")
         if ch is None:
-            trend = "❓ Нет данных"
+            trend = "❓ Nav datu"
         elif ch > 2:
-            trend = "📈 Рост"
+            trend = "📈 Aug"
         elif ch < -2:
-            trend = "🔻 Падение"
+            trend = "🔻 Krīt"
         else:
-            trend = "⚖️ Нейтрально"
-        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}\n"
+            trend = "⚖️ Stabils"
+        lines.append(f"{sym}: ${price:.2f} ({ch:+.2f}%) — {trend}")
+    text += "; ".join(lines)
     return text
 
 def get_profit_suggestion(coins=None):
-    if coins is None:
+    if not coins:
         coins = get_trending_coins()
     data = get_price_data(coins)
-    text = "📈 Оценка потенциала:\n\n"
-    for c in data:
-        sym = c.get("symbol", "???").upper()
-        price = c.get("current_price", 0)
-        ch = c.get("price_change_percentage_24h")
+    text = "📈 Potenciāls:\n"
+    lines = []
+    for coin in data:
+        sym = coin.get("symbol", "???").upper()
+        price = coin.get("current_price", 0)
+        ch = coin.get("price_change_percentage_24h")
         if ch is None:
-            signal = "❓ Недостаточно данных"
+            signal = "❓ Nav pietiekami datu"
         elif ch > 3:
-            signal = "🟢 LONG"
+            signal = "🟢 Ilgā pozīcija (Pērk)"
         elif ch < -3:
-            signal = "🔴 SHORT"
+            signal = "🔴 Īsā pozīcija (Pārdod)"
         else:
-            signal = "⚪ Нейтрально"
-        text += f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}\n"
+            signal = "⚪ Neitrāls"
+        lines.append(f"{sym}: ${price:.2f} ({ch:+.2f}%) — {signal}")
+    text += "; ".join(lines)
     return text
