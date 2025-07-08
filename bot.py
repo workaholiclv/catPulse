@@ -3,8 +3,9 @@ from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from crypto import get_analysis, get_profit, get_strategy, get_top_trending_coins
 
-# Glabājam lietotāja monētas
-user_coins = {}
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN nav iestatīts. Lūdzu, iestatiet to vides mainīgajā.")
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
