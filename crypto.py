@@ -28,8 +28,8 @@ def get_price_data(coin_id):
     url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {
         'vs_currency': 'usd',
-        'days': '1',
-        'interval': 'hourly'
+        'days': '30',  # взять больше данных для стратегии
+        'interval': 'daily'
     }
     response = requests.get(url, params=params)
     if response.status_code == 200:
@@ -69,7 +69,7 @@ def get_analysis(coins):
         end_price = prices[-1]
         change_pct = ((end_price - start_price) / start_price) * 100
         trend = "augšupejoša 📈" if change_pct > 0 else "lejupslīdoša 📉"
-        results.append(f"📊 {coin}: Cena pēdējās 24h {trend} par {change_pct:.2f}%.")
+        results.append(f"📊 {coin}: Cena pēdējās 30 dienās ir {trend} par {change_pct:.2f}%.")
     return "\n".join(results)
 
 def get_profit(coins):
@@ -96,7 +96,7 @@ def get_profit(coins):
             advice = "īsa pozīcija (SHORT) ieteicama ❄️"
         else:
             advice = "nav skaidras tendences, uzmanies ⚠️"
-        results.append(f"💡 {coin}: {advice} ({change_pct:.2f}% pārmaiņas pēdējās 24h)")
+        results.append(f"💡 {coin}: {advice} ({change_pct:.2f}% pārmaiņas pēdējās 30 dienās)")
     return "\n".join(results)
 
 def get_strategy(coins):
@@ -124,7 +124,7 @@ def get_strategy(coins):
         pct_24h = market_data.get("price_change_percentage_24h", 0)
         pct_7d = market_data.get("price_change_percentage_7d", 0)
         pct_30d = market_data.get("price_change_percentage_30d", 0)
-        
+
         text = (f"📈 {coin}: Stratēģija — ieguldi pa daļām, pārdod daļu pie +10% peļņas un izmanto trailing stop, lai aizsargātu nopelnīto, ja cena sāk krist.\n"
                 f"Cenas izmaiņas: pēdējās 24h {pct_24h:.2f}%, nedēļā {pct_7d:.2f}%, mēnesī {pct_30d:.2f}%.")
         results.append(text)
