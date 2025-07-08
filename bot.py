@@ -9,11 +9,10 @@ user_coins = {}
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         "👋 Sveiki! Esmu kripto-kaķis🐈‍⬛, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
-        "📌 *Pieejamās komandas:*\n"
-        "💰 /setcoins – iestata monētas (var vairākas caur komatu, piem. BTC,ETH,CRO)\n"
-        "📈 /analyze – rāda pašreizējo analīzi par iestatītajām monētām\n"
-        "📊 /profit – rāda ieteikumus par ilgo vai īso pozīciju\n"
-        "🧠 /strategy – parāda investīciju stratēģijas\n"
+        "📌 *Komandas:*\n"
+        "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
+        "📊 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
+        "🧠 /strategy – investīciju stratēģijas, jānorāda monētas (piem. BTC,ETH)\n"
         "❓ /help – palīdzība",
         parse_mode='Markdown'
     )
@@ -21,44 +20,30 @@ def start(update: Update, context: CallbackContext) -> None:
 def help_command(update: Update, context: CallbackContext) -> None:
     start(update, context)
 
-def set_coins(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    if context.args:
-        coins = [coin.strip().upper() for coin in ",".join(context.args).split(",")]
-        user_coins[user_id] = coins
-        update.message.reply_text(f"💰 Iestatītas monētas: {', '.join(coins)}")
-
-        analysis = get_analysis(coins)
-        profit = get_profit(coins)
-        update.message.reply_text(f"📈 Analīze:\n{analysis}")
-        update.message.reply_text(f"📊 Profita iespējas:\n{profit}")
-    else:
-        update.message.reply_text("⚠️ Lūdzu, ievadi monētas. Piemērs: /setcoins BTC,ETH")
-
 def analyze(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    coins = user_coins.get(user_id)
-    if not coins:
-        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
-        return
+    args = context.args
+    if args:
+        coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
+    else:
+        coins = get_top_trending_coins(5)
     analysis = get_analysis(coins)
     update.message.reply_text(f"📈 Analīze:\n{analysis}")
 
 def profit(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    coins = user_coins.get(user_id)
-    if not coins:
-        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
-        return
-    profit = get_profit(coins)
-    update.message.reply_text(f"📊 Profita iespējas:\n{profit}")
+    args = context.args
+    if args:
+        coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
+    else:
+        coins = get_top_trending_coins(5)
+    profit_text = get_profit(coins)
+    update.message.reply_text(f"📊 Profita iespējas:\n{profit_text}")
 
 def strategy(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    coins = user_coins.get(user_id)
-    if not coins:
-        update.message.reply_text("⚠️ Vispirms iestati monētas ar /setcoins")
+    args = context.args
+    if not args:
+        update.message.reply_text("⚠️ Lūdzu, norādi vismaz vienu monētu pēc komandas. Piemērs: /strategy BTC,ETH")
         return
+    coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
     strategies = get_strategy(coins)
     update.message.reply_text(f"🧠 Stratēģijas:\n{strategies}")
 
@@ -72,7 +57,6 @@ def main():
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("setcoins", set_coins))
     dispatcher.add_handler(CommandHandler("analyze", analyze))
     dispatcher.add_handler(CommandHandler("profit", profit))
     dispatcher.add_handler(CommandHandler("strategy", strategy))
