@@ -1,7 +1,7 @@
 import os
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from crypto import get_analysis, get_profit, get_strategy
+from crypto import get_analysis, get_profit, get_strategy, get_top_trending_coins
 
 # Glabājam lietotāja monētas
 user_coins = {}
@@ -17,49 +17,44 @@ def start(update: Update, context: CallbackContext) -> None:
         parse_mode='Markdown'
     )
 
-def help_command(update: Update, context: CallbackContext) -> None:
+def help_command(update: Update, context: CallbackContext):
     start(update, context)
 
-def analyze(update: Update, context: CallbackContext) -> None:
-    args = context.args
-    if args:
-        coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
+def analyze(update: Update, context: CallbackContext):
+    coins = []
+    if context.args:
+        coins = [coin.strip().upper() for coin in " ".join(context.args).split(",")]
     else:
         coins = get_top_trending_coins(5)
-    analysis = get_analysis(coins)
-    update.message.reply_text(f"📈 Analīze:\n{analysis}")
+    text = get_analysis(coins)
+    update.message.reply_text(text)
 
-def profit(update: Update, context: CallbackContext) -> None:
-    args = context.args
-    if args:
-        coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
+def profit(update: Update, context: CallbackContext):
+    coins = []
+    if context.args:
+        coins = [coin.strip().upper() for coin in " ".join(context.args).split(",")]
     else:
         coins = get_top_trending_coins(5)
-    profit_text = get_profit(coins)
-    update.message.reply_text(f"📊 Profita iespējas:\n{profit_text}")
+    text = get_profit(coins)
+    update.message.reply_text(text)
 
-def strategy(update: Update, context: CallbackContext) -> None:
-    args = context.args
-    if not args:
-        update.message.reply_text("⚠️ Lūdzu, norādi vismaz vienu monētu pēc komandas. Piemērs: /strategy BTC,ETH")
+def strategy(update: Update, context: CallbackContext):
+    if not context.args:
+        update.message.reply_text("Lūdzu, norādi vismaz vienu monētu, piem., /strategy BTC,ETH")
         return
-    coins = [coin.strip().upper() for coin in ",".join(args).split(",")]
-    strategies = get_strategy(coins)
-    update.message.reply_text(f"🧠 Stratēģijas:\n{strategies}")
+    coins = [coin.strip().upper() for coin in " ".join(context.args).split(",")]
+    text = get_strategy(coins)
+    update.message.reply_text(text)
 
 def main():
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    if not token:
-        raise ValueError("ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
+    updater = Updater(TOKEN)
+    dp = updater.dispatcher
 
-    updater = Updater(token=token, use_context=True)
-    dispatcher = updater.dispatcher
-
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("analyze", analyze))
-    dispatcher.add_handler(CommandHandler("profit", profit))
-    dispatcher.add_handler(CommandHandler("strategy", strategy))
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("analyze", analyze))
+    dp.add_handler(CommandHandler("profit", profit))
+    dp.add_handler(CommandHandler("strategy", strategy))
 
     updater.start_polling()
     updater.idle()
