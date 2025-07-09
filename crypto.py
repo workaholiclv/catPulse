@@ -108,6 +108,8 @@ def news(symbol):
     import os
     CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
     if not CRYPTO_PANIC_API_KEY:
+        return "API atslēga nav iestatīta vai netika nolasīta no vides mainīgajiem."
+
     url = f"https://cryptopanic.com/api/v1/posts/?auth_token={CRYPTO_PANIC_API_KEY}&currencies={symbol}&kind=news"
     try:
         response = requests.get(url)
@@ -116,13 +118,13 @@ def news(symbol):
         posts = data.get("results", [])
         if not posts:
             return f"Nav jaunumu par {symbol} šobrīd."
-        
+
         news_texts = []
         for post in posts[:5]:
             title = post.get("title", "Bez nosaukuma")
             source = post.get("source", {}).get("title", "")
             news_texts.append(f"• {title} ({source})")
-        
+
         return "\n".join(news_texts)
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
