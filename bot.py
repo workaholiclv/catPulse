@@ -10,6 +10,7 @@ from telegram.ext import (
     Updater,
     CommandHandler,
     CallbackContext,
+    ContextTypes,
 )
 from crypto import (
     get_top_coins,
