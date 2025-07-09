@@ -108,7 +108,7 @@ def get_current_price(symbol):
     return data["quotes"]["USD"]["price"]
 
 def news(symbol):
-    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={API_KEY}&currencies={symbol}&kind=news"
+    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={CRYPTO_PANIC_API_KEY}&currencies={symbol}&kind=news"
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -117,9 +117,8 @@ def news(symbol):
         if not posts:
             return f"Nav jaunumu par {symbol} šobrīd."
         
-        # Формируем краткий текст новостей
         news_texts = []
-        for post in posts[:5]:  # последние 5 новостей
+        for post in posts[:5]:
             title = post.get("title", "Bez nosaukuma")
             source = post.get("source", {}).get("title", "")
             news_texts.append(f"• {title} ({source})")
