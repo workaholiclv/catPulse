@@ -1,3 +1,5 @@
+import aiohttp
+import asyncio
 import requests
 import json
 import time
@@ -105,33 +107,33 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
- async def news(symbol: str) -> str:
-    headers = {
-        "Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"
-    }
-    params = {
-        "currencies": symbol.lower(),
-        "auth_token": CRYPTO_PANIC_API_KEY,
-        "public": "true"
-    }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(CRYPTO_PANIC_API_URL, headers=headers, params=params) as resp:
-                if resp.status != 200:
-                    return "Neizdevās ielādēt jaunākās ziņas."
+async def news(symbol: str) -> str:
+    try:
+        params = {
+            "auth_token": CRYPTO_PANIC_API_KEY,
+            "currencies": symbol.lower(),
+            "public": "true"
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(CRYPTO_PANIC_API_URL, params=params) as resp:
+                resp.raise_for_status()
                 data = await resp.json()
-                posts = data.get("results", [])
-                if not posts:
-                    return f"Nav jaunāko ziņu par {symbol.upper()}."
 
-                news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-                for post in posts[:5]:
-                    title = post.get("title", "Bez virsraksta")
-                    source = post.get("source", {}).get("title", "")
-                    news_text += f"• {title}\n  {source}\n\n"
-                return news_text
-        except Exception:
-            return "Neizdevās ielādēt jaunākās ziņas."
+        posts = data.get("results", [])[:5]
+        if not posts:
+            return f"Nav jaunāko ziņu par {symbol.upper()}."
+
+        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
+        for post in posts:
+            title = post.get("title", "Bez virsraksta")
+            url = post.get("url", "")
+            source = post.get("source", {}).get("title", "")
+            news_text += f"• [{title}]({url}) ({source})\n"
+
+        return news_text
+    except Exception as e:
+        logging.warning(f"news error: {e}")
+        return f"❌ Neizdevās ielādēt jaunākās ziņas par {symbol.upper()}."
 
 def get_analysis(coins=None):
     if not coins:
