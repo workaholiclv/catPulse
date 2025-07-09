@@ -21,6 +21,7 @@ from crypto import (
     remove_alert,
     check_alerts,
     load_alerts,
+    alerts, 
 )
 
 # 🌍 Ielādē .env failu
