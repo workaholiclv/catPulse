@@ -1,11 +1,12 @@
 import requests
-import time
 import json
+import time
 import os
 
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
+# 🔔 Glabā lietotāju uzstādītos cenu brīdinājumus
 alerts = {}
 
 def load_alerts():
@@ -13,122 +14,157 @@ def load_alerts():
     if os.path.exists(ALERTS_FILE):
         with open(ALERTS_FILE, "r") as f:
             alerts = json.load(f)
+    else:
+        alerts = {}
 
 def save_alerts():
     with open(ALERTS_FILE, "w") as f:
         json.dump(alerts, f)
 
-
-def get_price(coin_id):
-    try:
-        url = f"{COINPAPRIKA_API}/tickers/{coin_id}"
-        response = requests.get(url)
-        data = response.json()
-        return data["quotes"]["USD"]["price"]
-    except Exception:
-        return None
-
-
-def get_news():
-    return (
-        "*📰 Jaunākās kripto ziņas:*\n"
-        "- Bitcoin pārsniedz 70 000 USD\n"
-        "- Ethereum ETF apstiprināts\n"
-        "- Binance atver jaunu biržu Eiropā"
-    )
-
-
-def analyze_market():
-    return (
-        "*📊 Tirgus analīze:*\n"
-        "BTC izskatās bullish virs 68k\n"
-        "ETH turas virs 3.5k\n"
-        "Dominance pieaug, bet altcoini stagnē"
-    )
-
-
-def check_alerts(bot=None, user_id=None, manual=False):
-    global alerts
-    if manual and user_id:
-        user_alerts = alerts.get(str(user_id), [])
-        if not user_alerts:
-            return "🔕 Tev nav uzstādītu brīdinājumu."
-        results = ["*🔔 Tavs cenu brīdinājumu status:*"]
-        for alert in user_alerts:
-            coin = alert["coin"]
-            target_price = alert["price"]
-            current = get_price(coin)
-            if current:
-                results.append(f"{coin.upper()}: {current:.2f} USD (mērķis: {target_price})")
-        return "\n".join(results) if results else "🔕 Nav pieejamu datu."
-
-    if not bot:
-        return
-
-    for uid, user_alerts in alerts.items():
-        for alert in user_alerts:
-            coin = alert["coin"]
-            target_price = alert["price"]
-            current = get_price(coin)
-            if current and current >= target_price:
-                try:
-                    bot.send_message(
-                        chat_id=int(uid),
-                        text=f"🚨 {coin.upper()} sasniedza {current:.2f} USD (mērķis bija {target_price})"
-                    )
-                except Exception:
-                    pass
-
-    time.sleep(30)
-    check_alerts(bot=bot)
-
-
-def set_alert(user_id, coin, price):
+def add_alert(user_id, coin, price):
     user_id = str(user_id)
+    coin = coin.lower()
     if user_id not in alerts:
         alerts[user_id] = []
-    alerts[user_id].append({"coin": coin.lower(), "price": float(price)})
+    alerts[user_id].append({"coin": coin, "price": price})
     save_alerts()
-    return f"🔔 Alerte uzstādīta: {coin.upper()} ≥ {price} USD"
 
-
-def remove_alert(user_id, coin):
+def remove_alert(user_id, coin, price):
     user_id = str(user_id)
     coin = coin.lower()
     if user_id in alerts:
-        alerts[user_id] = [a for a in alerts[user_id] if a["coin"] != coin]
+        alerts[user_id] = [a for a in alerts[user_id] if not (a["coin"] == coin and a["price"] == price)]
         if not alerts[user_id]:
             del alerts[user_id]
         save_alerts()
-        return f"🗑️ Alerte noņemta: {coin.upper()}"
-    return f"❗ Tev nav uzstādīts brīdinājums par {coin.upper()}"
 
+def check_alerts(bot):
+    """Pārbauda alertus un sūta paziņojumus."""
+    while True:
+        for user_id, user_alerts in list(alerts.items()):
+            for alert in user_alerts[:]:
+                coin = alert['coin'].lower()
+                target_price = alert['price']
+                price = get_current_price(coin)
+                if price is None:
+                    continue
+                if price >= target_price:
+                    text = f"⚠️ Cena {coin.upper()} sasniedz {price:.4f} USD (mērķis {target_price} USD)!"
+                    bot.send_message(chat_id=int(user_id), text=text)
+                    user_alerts.remove(alert)  # Noņem alertu pēc paziņojuma
+            if not user_alerts:
+                del alerts[user_id]
+        save_alerts()
+        time.sleep(900)  # 15 minūtes
 
-def get_profit(update, context):
+def get_top_coins(limit=10):
     try:
-        args = context.args
-        if len(args) != 3:
-            return "❗ Lietošana: /profit <coin> <buy_price> <amount>"
-
-        coin = args[0].lower()
-        buy_price = float(args[1])
-        amount = float(args[2])
-        current_price = get_price(coin)
-
-        if not current_price:
-            return f"❌ Neizdevās iegūt {coin.upper()} cenu."
-
-        profit = (current_price - buy_price) * amount
-        return f"💸 Peļņa par {coin.upper()}: {profit:.2f} USD"
+        response = requests.get(f"{COINPAPRIKA_API}/coins")
+        response.raise_for_status()
+        all_coins = response.json()
+        coins = [coin for coin in all_coins if coin.get("rank") and coin.get("type") == "coin"]
+        sorted_coins = sorted(coins, key=lambda x: x["rank"])
+        return [coin["symbol"].upper() for coin in sorted_coins[:limit]]
     except Exception:
-        return "❗ Neizdevās aprēķināt. Pārbaudi ievades datus."
+        return []
 
+def get_coin_id(symbol):
+    try:
+        response = requests.get(f"{COINPAPRIKA_API}/coins")
+        response.raise_for_status()
+        for coin in response.json():
+            if coin["symbol"].upper() == symbol.upper() and coin["type"] == "coin":
+                return coin["id"]
+        return None
+    except Exception:
+        return None
 
-def get_strategy():
-    return (
-        "*📈 Stratēģijas idejas:*\n"
-        "- DCA (Dollar Cost Averaging)\n"
-        "- Swing trading ar RSI indikatoru\n"
-        "- Long ETH + short altcoini\n"
-        "- HODL top 3 coinus līdz 2026"
-    )
+def get_price_data(symbol):
+    coin_id = get_coin_id(symbol)
+    if not coin_id:
+        return None
+    try:
+        response = requests.get(f"{COINPAPRIKA_API}/tickers/{coin_id}")
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        return None
+
+def get_current_price(symbol):
+    data = get_price_data(symbol)
+    if not data:
+        return None
+    return data["quotes"]["USD"]["price"]
+
+def get_news(symbol):
+    coin_id = get_coin_id(symbol)
+    if not coin_id:
+        return "Neizdevās ielādēt jaunākās ziņas."
+    try:
+        response = requests.get(f"{COINPAPRIKA_API}/coins/{coin_id}/events")
+        response.raise_for_status()
+        events = response.json()
+        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
+        # Parādīsim max 5 jaunākos notikumus
+        for event in events.get("events", [])[:5]:
+            news_text += f"• {event.get('title', 'Bez virsraksta')}\n  {event.get('description', '')}\n  {event.get('source', '')}\n\n"
+        return news_text if events.get("events") else "Nav jaunāko ziņu."
+    except Exception:
+        return "Neizdevās ielādēt jaunākās ziņas."
+
+def get_analysis(coins=None):
+    if not coins:
+        coins = get_top_coins(10)
+    output = "📊 *Tirgus analīze:*\n\n"
+    for symbol in coins:
+        data = get_price_data(symbol)
+        if not data:
+            output += f"{symbol}: ❌ Neizdevās iegūt datus\n"
+            continue
+        price = data["quotes"]["USD"]["price"]
+        change_24h = data["quotes"]["USD"]["percent_change_24h"]
+        output += f"🔸 {symbol}: ${price:.4f} ({change_24h:+.2f}%)\n"
+    return output
+
+def calculate_profit(coins=None):
+    if not coins:
+        coins = get_top_coins(10)
+    output = "💰 *Pozīciju ieteikumi:*\n\n"
+    for symbol in coins:
+        data = get_price_data(symbol)
+        if not data:
+            output += f"{symbol}: ❌ Neizdevās iegūt datus\n"
+            continue
+        change_24h = data["quotes"]["USD"].get("percent_change_24h", 0)
+        if change_24h > 3:
+            pos = "📈 Ilgā pozīcija (pirkt un turēt)"
+        elif change_24h < -3:
+            pos = "📉 Īsā pozīcija (pārdot vai spekulēt uz kritumu)"
+        else:
+            pos = "⚖️ Neitrāli"
+        output += f"{symbol}: {pos} ({change_24h:+.2f}%)\n"
+    return output
+
+def get_strategy(coins):
+    output = "📈 *Stratēģija:*\n\n"
+    for symbol in coins:
+        data = get_price_data(symbol)
+        if not data:
+            output += f"{symbol}: ❌ Neizdevās iegūt datus\n"
+            continue
+        q = data["quotes"]["USD"]
+        price = q["price"]
+        change_24h = q.get("percent_change_24h", 0)
+        change_7d = q.get("percent_change_7d", 0)
+        change_30d = q.get("percent_change_30d", 0)
+
+        output += (
+            f"🔹 {symbol}\n"
+            f"💵 Cena: ${price:.4f}\n"
+            f"🔄 24h: {change_24h:+.2f}% | 7d: {change_7d:+.2f}% | 30d: {change_30d:+.2f}%\n"
+            f"📌 Stratēģija:\n"
+            f"• Ieguldi pa daļām (Dollar-Cost Averaging — DCA), iegādājoties pakāpeniski neatkarīgi no cenas.\n"
+            f"• Pārdod daļu, kad peļņa sasniedz +10% (take profit).\n"
+            f"• Izmanto stop loss (trailing stop) — aizsardzības mehānisms, kas pārdod, ja cena sāk krist pēc kāpuma.\n\n"
+        )
+    return output
