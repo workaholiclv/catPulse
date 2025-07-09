@@ -8,9 +8,6 @@ import os
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
-CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
-CRYPTO_PANIC_API_URL = "https://cryptopanic.com/api/v1/posts/"
-
 # 🔔 Glabā lietotāju uzstādītos cenu brīdinājumus
 alerts = {}
 
@@ -108,6 +105,9 @@ def get_current_price(symbol):
     return data["quotes"]["USD"]["price"]
 
 def news(symbol):
+    import os
+    CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
+    if not CRYPTO_PANIC_API_KEY:
     url = f"https://cryptopanic.com/api/v1/posts/?auth_token={CRYPTO_PANIC_API_KEY}&currencies={symbol}&kind=news"
     try:
         response = requests.get(url)
