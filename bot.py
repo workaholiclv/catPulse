@@ -3,7 +3,7 @@ import threading
 import time
 import logging
 import requests
-import news as get_news_async
+from crypto import news
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
