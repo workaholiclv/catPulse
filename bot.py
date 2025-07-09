@@ -35,84 +35,98 @@ def start(update: Update, context: CallbackContext) -> None:
       )
     update.message.reply_text(text)
 
-def help_command(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(
-        "ℹ️ Pieejamās komandas:\n"
-        "📊 /analyze - analīze par top 10 kripto\n"
-        "💰 /profit - ieteikumi (ilgi/īsi)\n"
-        "📈 /strategy SYMBOL[,SYMBOL2] - piemēram: /strategy BTC,ETH\n\n"
-        "Nav jāiestata atsevišķi monētas — mēs automātiski izvēlamies populārākās!"
-    )
+def help_command(update: Update, context: CallbackContext):
+    start(update, context)
 
-def analyze(update: Update, context: CallbackContext) -> None:
-    coins = [coin.upper() for coin in context.args] if context.args else []
-    response = get_analysis(coins)
-    update.message.reply_text(response)
+def parse_coins(args):
+    if not args:
+        return None
+    coins = [coin.strip().upper() for coin in ' '.join(args).split(',') if coin.strip()]
+    return coins if coins else None
 
-def profit(update: Update, context: CallbackContext) -> None:
-    coins = [coin.upper() for coin in context.args] if context.args else []
-    response = get_profit(coins)
-    update.message.reply_text(response)
+def analyze(update: Update, context: CallbackContext):
+    coins = parse_coins(context.args)
+    text = get_analysis(coins)
+    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
-def strategy(update: Update, context: CallbackContext) -> None:
-    coins = [coin.upper() for coin in context.args]
+def profit(update: Update, context: CallbackContext):
+    coins = parse_coins(context.args)
+    text = get_profit(coins)
+    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
+def strategy(update: Update, context: CallbackContext):
+    coins = parse_coins(context.args)
     if not coins:
-        update.message.reply_text("❗Lūdzu norādi vismaz vienu monētu. Piemēram: /strategy BTC,ETH")
+        update.message.reply_text("❗️Lūdzu, norādi vismaz vienu monētu, piemēram: /strategy BTC,ETH")
         return
-    response = get_strategy(coins)
-    update.message.reply_text(response)
+    text = get_strategy(coins)
+    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
-def alerts_command(update: Update, context: CallbackContext):
-    user_id = update.message.chat_id
-    args = context.args
-    if len(args) != 2:
-        update.message.reply_text(
-            "ℹ️ Lūdzu, ievadi komandu šādi: /alerts SYMBOL CENA\nPiemērs: /alerts BTC 65000"
-        )
+def news(update: Update, context: CallbackContext):
+    coins = parse_coins(context.args)
+    if not coins or len(coins) != 1:
+        update.message.reply_text("❗️Lūdzu, norādi vienu monētu, piemēram: /news BTC")
         return
-    coin = args[0].lower()
+    text = get_news(coins[0])
+    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
+def alert(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.message.reply_text("❗️Izmanto: /alert MONĒTA CENA\nPiemērs: /alert BTC 70000")
+        return
+
+    coin = context.args[0].upper()
     try:
-        price = float(args[1])
+        price = float(context.args[1])
     except ValueError:
-        update.message.reply_text("⚠️ Lūdzu, ievadi derīgu cenu (piem., 65000).")
+        update.message.reply_text("❗️Cenai jābūt skaitlim. Piemērs: /alert BTC 70000")
         return
 
+    user_id = update.message.chat_id
     if user_id not in alerts:
         alerts[user_id] = []
     alerts[user_id].append({"coin": coin, "price": price})
-    update.message.reply_text(f"✅ Tavi alerts par {coin.upper()} pie {price} USD ir iestatīts!")
+    update.message.reply_text(f"🔔 Brīdinājums uzstādīts: {coin} sasniedz ${price:.2f}")
 
-def news_command(update: Update, context: CallbackContext):
-    args = context.args
-    if not args:
-        update.message.reply_text("ℹ️ Lūdzu, norādi monētu simbolu. Piemērs: /news BTC")
-        return
-    coin = args[0].lower()
-    text = get_news(coin)
-    update.message.reply_text(text)
+def check_alerts(bot):
+    import time
+    while True:
+        for user_id, user_alerts in list(alerts.items()):
+            for alert in user_alerts[:]:
+                coin = alert['coin']
+                price = get_current_price(coin)
+                if price is None:
+                    continue
+                if price >= alert['price']:
+                    msg = f"⚠️ {coin} ir sasniedzis ${price:.2f} (mērķis ${alert['price']:.2f})"
+                    bot.send_message(chat_id=user_id, text=msg)
+                    user_alerts.remove(alert)
+            if not user_alerts:
+                del alerts[user_id]
+        time.sleep(900)  # ik pēc 15 minūtēm
+
+def error(update: Update, context: CallbackContext):
+    logger.warning(f'Update {update} izraisīja kļūdu: {context.error}')
 
 def main():
-    if not TOKEN:
-        print("❌ ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
-        return
-
     updater = Updater(TOKEN)
-    dp = updater.dispatcher
+    dispatcher = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CommandHandler("analyze", analyze))
-    dp.add_handler(CommandHandler("profit", profit))
-    dp.add_handler(CommandHandler("strategy", strategy))
-    dp.add_handler(CommandHandler("alerts", alerts_command))
-    dp.add_handler(CommandHandler("news", news_command))
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
+    dispatcher.add_handler(CommandHandler("analyze", analyze))
+    dispatcher.add_handler(CommandHandler("profit", profit))
+    dispatcher.add_handler(CommandHandler("strategy", strategy))
+    dispatcher.add_handler(CommandHandler("news", news))
+    dispatcher.add_handler(CommandHandler("alert", alert))
 
-    # Sāk alerts pārbaudes fonā
-    alert_thread = threading.Thread(target=check_alerts, args=(updater.bot,), daemon=True)
-    alert_thread.start()
+    dispatcher.add_error_handler(error)
+
+    # Start alert checking in background
+    threading.Thread(target=check_alerts, args=(updater.bot,), daemon=True).start()
 
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
