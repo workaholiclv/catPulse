@@ -107,33 +107,26 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
-async def news(symbol: str) -> str:
+def news(symbol):
+    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={API_KEY}&currencies={symbol}&kind=news"
     try:
-        params = {
-            "auth_token": CRYPTO_PANIC_API_KEY,
-            "currencies": symbol.lower(),
-            "public": "true"
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.get(CRYPTO_PANIC_API_URL, params=params) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-
-        posts = data.get("results", [])[:5]
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        posts = data.get("results", [])
         if not posts:
-            return f"Nav jaunāko ziņu par {symbol.upper()}."
-
-        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        for post in posts:
-            title = post.get("title", "Bez virsraksta")
-            url = post.get("url", "")
+            return f"Nav jaunumu par {symbol} šobrīd."
+        
+        # Формируем краткий текст новостей
+        news_texts = []
+        for post in posts[:5]:  # последние 5 новостей
+            title = post.get("title", "Bez nosaukuma")
             source = post.get("source", {}).get("title", "")
-            news_text += f"• [{title}]({url}) ({source})\n"
-
-        return news_text
+            news_texts.append(f"• {title} ({source})")
+        
+        return "\n".join(news_texts)
     except Exception as e:
-        logging.warning(f"news error: {e}")
-        return f"❌ Neizdevās ielādēt jaunākās ziņas par {symbol.upper()}."
+        return f"Kļūda iegūstot ziņas: {e}"
 
 def get_analysis(coins=None):
     if not coins:
