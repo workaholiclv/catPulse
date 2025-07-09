@@ -1,6 +1,46 @@
 import requests
+import time
 
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
+
+alerts = {}  # Piemēram, {"user_id": [{"coin": "btc", "price": 65000}]}
+
+def check_alerts(bot):
+    """Pārbauda alertus un sūta paziņojumus."""
+    while True:
+        for user_id, user_alerts in list(alerts.items()):
+            for alert in user_alerts:
+                coin = alert['coin'].lower()
+                target_price = alert['price']
+                price = get_current_price(coin)
+                if price is None:
+                    continue
+                if price >= target_price:
+                    text = f"⚠️ Cena {coin.upper()} sasniedz {price} USD (mērķis {target_price} USD)!"
+                    bot.send_message(chat_id=user_id, text=text)
+                    user_alerts.remove(alert)  # Noņem alertu pēc paziņojuma
+            if not user_alerts:
+                del alerts[user_id]
+        time.sleep(900)  # 15 minūtes
+
+def get_current_price(symbol):
+    try:
+        r = requests.get(f"https://api.coinpaprika.com/v1/tickers/{symbol}")
+        data = r.json()
+        return data["quotes"]["USD"]["price"]
+    except Exception:
+        return None
+
+def get_news(symbol):
+    try:
+        r = requests.get(f"https://api.coinpaprika.com/v1/tickers/{symbol}/news")
+        news_list = r.json()
+        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
+        for item in news_list[:5]:
+            news_text += f"• {item['title']}\n{item['url']}\n\n"
+        return news_text
+    except Exception:
+        return "Neizdevās ielādēt jaunākās ziņas."
 
 def get_top_coins(limit=10):
     try:
