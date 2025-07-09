@@ -91,7 +91,7 @@ def strategy(update: Update, context: CallbackContext) -> None:
     text = get_strategy(coins)
     update.message.reply_text(text)
 
-async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def news_command(update: Update, context):
     if not context.args:
         await update.message.reply_text("Lūdzu norādi monētu, piem., /news BTC")
         return
