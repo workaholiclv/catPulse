@@ -153,7 +153,9 @@ def main():
     application.add_error_handler(error_handler)
 
     # Запуск фоновой проверки алертов
-    application.post_init = lambda app: asyncio.create_task(alert_checker(app))
+    async def post_init(app: Application):
+    app.create_task(alert_checker(app))
+    application.post_init = post_init
 
     application.run_polling()
 
