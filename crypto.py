@@ -106,6 +106,8 @@ def get_current_price(symbol):
 
 def news(symbol):
     CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
+    print(f"[DEBUG] Cryptopanic API KEY = {CRYPTO_PANIC_API_KEY}")  # временно
+
     if not CRYPTO_PANIC_API_KEY:
         return "API atslēga nav iestatīta vai netika nolasīta no vides mainīgajiem."
 
