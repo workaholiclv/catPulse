@@ -50,8 +50,11 @@ def check_alerts(bot):
                     continue
                 if price >= target_price:
                     text = f"⚠️ Cena {coin.upper()} sasniedz {price:.4f} USD (mērķis {target_price} USD)!"
-                    bot.send_message(chat_id=int(user_id), text=text)
-                    user_alerts.remove(alert)  # Noņem alertu pēc paziņojuma
+                    try:
+                        bot.send_message(chat_id=int(user_id), text=text)
+                    except Exception as e:
+                        print(f"Error sending alert message: {e}")
+                    user_alerts.remove(alert)
             if not user_alerts:
                 del alerts[user_id]
         save_alerts()
@@ -65,7 +68,8 @@ def get_top_coins(limit=10):
         coins = [coin for coin in all_coins if coin.get("rank") and coin.get("type") == "coin"]
         sorted_coins = sorted(coins, key=lambda x: x["rank"])
         return [coin["symbol"].upper() for coin in sorted_coins[:limit]]
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_top_coins: {e}")
         return []
 
 def get_coin_id(symbol):
@@ -76,7 +80,8 @@ def get_coin_id(symbol):
             if coin["symbol"].upper() == symbol.upper() and coin["type"] == "coin":
                 return coin["id"]
         return None
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_coin_id: {e}")
         return None
 
 def get_price_data(symbol):
@@ -87,7 +92,8 @@ def get_price_data(symbol):
         response = requests.get(f"{COINPAPRIKA_API}/tickers/{coin_id}")
         response.raise_for_status()
         return response.json()
-    except Exception:
+    except Exception as e:
+        print(f"Error in get_price_data for {symbol}: {e}")
         return None
 
 def get_current_price(symbol):
@@ -105,11 +111,18 @@ def get_news(symbol):
         response.raise_for_status()
         events = response.json()
         news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        # Parādīsim max 5 jaunākos notikumus
-        for event in events.get("events", [])[:5]:
-            news_text += f"• {event.get('title', 'Bez virsraksta')}\n  {event.get('description', '')}\n  {event.get('source', '')}\n\n"
-        return news_text if events.get("events") else "Nav jaunāko ziņu."
-    except Exception:
+        events_list = events.get("events", [])
+        if not events_list:
+            return "Nav jaunāko ziņu."
+        for event in events_list[:5]:
+            news_text += (
+                f"• {event.get('title', 'Bez virsraksta')}\n"
+                f"  {event.get('description', '')}\n"
+                f"  Avots: {event.get('source', '')}\n\n"
+            )
+        return news_text
+    except Exception as e:
+        print(f"Error in get_news: {e}")
         return "Neizdevās ielādēt jaunākās ziņas."
 
 def get_analysis(coins=None):
