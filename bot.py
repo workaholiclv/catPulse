@@ -185,7 +185,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("analyze", analyze))
     dispatcher.add_handler(CommandHandler("profit", profit))
     dispatcher.add_handler(CommandHandler("strategy", strategy))
-    dispatcher.add_handler(CommandHandler("news", news_command))
+    dispatcher.add_handler(CommandHandler("news", news))
     dispatcher.add_handler(CommandHandler("setalert", setalert_command))
     dispatcher.add_handler(CommandHandler("removealert", removealert_command))
 
