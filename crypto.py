@@ -111,18 +111,17 @@ def get_news(symbol):
         response.raise_for_status()
         events = response.json()
         news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        events_list = events.get("events", [])
-        if not events_list:
+        # Парādīsim max 5 jaunākos notikumus
+        if not events:
             return "Nav jaunāko ziņu."
-        for event in events_list[:5]:
+        for event in events[:5]:
             news_text += (
                 f"• {event.get('title', 'Bez virsraksta')}\n"
                 f"  {event.get('description', '')}\n"
-                f"  Avots: {event.get('source', '')}\n\n"
+                f"  {event.get('source', '')}\n\n"
             )
         return news_text
-    except Exception as e:
-        print(f"Error in get_news: {e}")
+    except Exception:
         return "Neizdevās ielādēt jaunākās ziņas."
 
 def get_analysis(coins=None):
