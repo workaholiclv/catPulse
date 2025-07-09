@@ -1,15 +1,15 @@
 import os
-import threading
-import time
 import logging
 import asyncio
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
+    Application,
     ApplicationBuilder,
     CommandHandler,
     ContextTypes,
 )
+
 from crypto import (
     get_top_coins,
     get_analysis,
@@ -39,7 +39,7 @@ if not TOKEN:
 # --- Команды ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "👋 Sveiki! Esmu kripto-kaķis🐾, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
+        "👋 Čau! Esmu kripto-kaķis🐾, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
         "📌 *Pieejamās komandas:*\n"
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
         "💰 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
@@ -67,30 +67,24 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    coins = context.args
-    if not coins:
-        coins = get_top_coins(10)
+    coins = context.args or get_top_coins(10)
     text = get_analysis(coins)
     await update.message.reply_text(text)
 
 async def profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    coins = context.args
-    if not coins:
-        coins = get_top_coins(10)
+    coins = context.args or get_top_coins(10)
     text = calculate_profit(coins)
     await update.message.reply_text(text)
 
 async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     coins = context.args
     if not coins:
-        await update.message.reply_text(
-            "Lūdzu, norādi vismaz vienu monētu pēc komandas, piem., /strategy BTC ETH"
-        )
+        await update.message.reply_text("Lūdzu, norādi vismaz vienu monētu pēc komandas, piem., /strategy BTC ETH")
         return
     text = get_strategy(coins)
     await update.message.reply_text(text)
 
-async def news_command(update: Update, context):
+async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Lūdzu norādi monētu, piem., /news BTC")
         return
@@ -126,35 +120,23 @@ async def removealert_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Lūdzu, ievadi derīgu cenu.")
         return
 
-    alerts = context.bot_data.get("alerts", {})
-    count_before = len(alerts.get(str(user_id), []))
-
     remove_alert(user_id, coin, price)
-
-    count_after = len(alerts.get(str(user_id), []))
-    if count_before == count_after:
-        await update.message.reply_text("⚠️ Šāds brīdinājums netika atrasts.")
-    else:
-        await update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
+    await update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.warning(f"Update {update} caused error: {context.error}")
 
-# --- Фоновая проверка alert-ов ---
-def start_alert_checker(app):
-    def run():
-        while True:
-            try:
-                check_alerts(app.bot)
-            except Exception as e:
-                logger.error(f"Kļūda alertu pārbaudē: {e}")
-            time.sleep(60)
+# --- Асинхронная фоновая проверка алертов ---
+async def alert_checker(application: Application):
+    while True:
+        try:
+            check_alerts(application.bot)
+        except Exception as e:
+            logger.error(f"Kļūda alertu pārbaudē: {e}")
+        await asyncio.sleep(60)
 
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-
-# --- main ---
-async def main():
+# --- Главная функция запуска ---
+def main():
     application = ApplicationBuilder().token(TOKEN).build()
 
     application.bot_data["alerts"] = load_alerts() or {}
@@ -170,9 +152,10 @@ async def main():
 
     application.add_error_handler(error_handler)
 
-    start_alert_checker(application)
+    # Запуск фоновой проверки алертов
+    application.post_init = lambda app: asyncio.create_task(alert_checker(app))
 
-    await application.run_polling()
+    application.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
