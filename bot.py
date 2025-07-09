@@ -1,8 +1,18 @@
 import os
 import logging
+import threading
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from crypto import get_analysis, get_profit, get_strategy
+
+from crypto import (
+    get_analysis,
+    get_profit,
+    get_strategy,
+    alerts,
+    check_alerts,
+    get_news,
+    get_top_trending_coins
+)
 
 # Получаем токен из переменных среды (например, Railway Variables)
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -18,9 +28,12 @@ def start(update: Update, context: CallbackContext) -> None:
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
         "💰 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
         "📈 /strategy – investīciju stratēģijas, jānorāda monētas (piem. BTC,ETH)\n"
+        "🔔 /alerts SYMBOL CENA - iestata cenu, pie kuras saņemt paziņojumu (piem., /alerts BTC 65000)\n"
+        "📰 /news SYMBOL - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "❓ /help – palīdzība",
         parse_mode='Markdown'
-    )
+      )
+    update.message.reply_text(text)
 
 def help_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
@@ -49,15 +62,54 @@ def strategy(update: Update, context: CallbackContext) -> None:
     response = get_strategy(coins)
     update.message.reply_text(response)
 
-def main():
-    updater = Updater(TOKEN)
-    dispatcher = updater.dispatcher
+def alerts_command(update: Update, context: CallbackContext):
+    user_id = update.message.chat_id
+    args = context.args
+    if len(args) != 2:
+        update.message.reply_text(
+            "ℹ️ Lūdzu, ievadi komandu šādi: /alerts SYMBOL CENA\nPiemērs: /alerts BTC 65000"
+        )
+        return
+    coin = args[0].lower()
+    try:
+        price = float(args[1])
+    except ValueError:
+        update.message.reply_text("⚠️ Lūdzu, ievadi derīgu cenu (piem., 65000).")
+        return
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("analyze", analyze))
-    dispatcher.add_handler(CommandHandler("profit", profit))
-    dispatcher.add_handler(CommandHandler("strategy", strategy))
+    if user_id not in alerts:
+        alerts[user_id] = []
+    alerts[user_id].append({"coin": coin, "price": price})
+    update.message.reply_text(f"✅ Tavi alerts par {coin.upper()} pie {price} USD ir iestatīts!")
+
+def news_command(update: Update, context: CallbackContext):
+    args = context.args
+    if not args:
+        update.message.reply_text("ℹ️ Lūdzu, norādi monētu simbolu. Piemērs: /news BTC")
+        return
+    coin = args[0].lower()
+    text = get_news(coin)
+    update.message.reply_text(text)
+
+def main():
+    if not TOKEN:
+        print("❌ ERROR: TELEGRAM_BOT_TOKEN nav iestatīts.")
+        return
+
+    updater = Updater(TOKEN)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("analyze", analyze))
+    dp.add_handler(CommandHandler("profit", profit))
+    dp.add_handler(CommandHandler("strategy", strategy))
+    dp.add_handler(CommandHandler("alerts", alerts_command))
+    dp.add_handler(CommandHandler("news", news_command))
+
+    # Sāk alerts pārbaudes fonā
+    alert_thread = threading.Thread(target=check_alerts, args=(updater.bot,), daemon=True)
+    alert_thread.start()
 
     updater.start_polling()
     updater.idle()
