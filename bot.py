@@ -3,6 +3,7 @@ import threading
 import time
 import logging
 import requests
+import news as get_news_async
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
@@ -89,32 +90,13 @@ def strategy(update: Update, context: CallbackContext) -> None:
     text = get_strategy(coins)
     update.message.reply_text(text)
 
-def news(symbol):
-    try:
-        params = {
-            "auth_token": CRYPTO_PANIC_API_KEY,
-            "currencies": symbol.lower(),
-            "public": "true"
-        }
-        response = requests.get(CRYPTO_PANIC_API_URL, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        posts = data.get("results", [])[:5]
-        if not posts:
-            return f"Nav jaunāko ziņu par {symbol.upper()}."
-
-        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        for post in posts:
-            title = post.get("title", "Bez virsraksta")
-            url = post.get("url", "")
-            source = post.get("source", {}).get("title", "")
-            news_text += f"• [{title}]({url}) ({source})\n"
-
-        return news_text
-    except Exception as e:
-        logging.warning(f"news error: {e}")
-        return f"❌ Neizdevās ielādēt jaunākās ziņas par {symbol.upper()}."
+async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Lūdzu norādi monētu, piem., /news BTC")
+        return
+    symbol = context.args[0]
+    text = await news(symbol)  # await, так как функция асинхронная
+    await update.message.reply_text(text)
 
 def setalert_command(update: Update, context: CallbackContext):
     user_id = update.message.chat_id
