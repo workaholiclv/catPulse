@@ -155,7 +155,8 @@ def main():
     # Запуск фоновой проверки алертов
     async def post_init(app: Application):
     app.create_task(alert_checker(app))
-    application.post_init = post_init
+
+application.post_init = post_init
 
     application.run_polling()
 
