@@ -105,30 +105,33 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
-def news(symbol):
-    headers = {"Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"}
+ async def news(symbol: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"
+    }
     params = {
         "currencies": symbol.lower(),
-        "filter": "news",  # или "hot", по желанию
         "auth_token": CRYPTO_PANIC_API_KEY,
+        "public": "true"
     }
-    try:
-        response = requests.get(CRYPTO_PANIC_API_URL, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-        posts = data.get("results", [])
-        if not posts:
-            return f"📰 Nav jaunāko ziņu par {symbol}."
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(CRYPTO_PANIC_API_URL, headers=headers, params=params) as resp:
+                if resp.status != 200:
+                    return "Neizdevās ielādēt jaunākās ziņas."
+                data = await resp.json()
+                posts = data.get("results", [])
+                if not posts:
+                    return f"Nav jaunāko ziņu par {symbol.upper()}."
 
-        news_text = f"📰 Jaunākās ziņas par {symbol}:\n\n"
-        for post in posts[:5]:  # максимум 5 новостей
-            title = post.get("title", "Bez virsraksta")
-            source = post.get("source", {}).get("title", "")
-            url = post.get("url", "")
-            news_text += f"• {title}\n  Avots: {source}\n  {url}\n\n"
-        return news_text
-    except Exception as e:
-        return "Neizdevās ielādēt jaunākās ziņas."
+                news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
+                for post in posts[:5]:
+                    title = post.get("title", "Bez virsraksta")
+                    source = post.get("source", {}).get("title", "")
+                    news_text += f"• {title}\n  {source}\n\n"
+                return news_text
+        except Exception:
+            return "Neizdevās ielādēt jaunākās ziņas."
 
 def get_analysis(coins=None):
     if not coins:
