@@ -16,7 +16,7 @@ from crypto import (
     get_analysis,
     calculate_profit,
     get_strategy,
-    get_news,
+    news,
     add_alert,
     remove_alert,
     check_alerts,
