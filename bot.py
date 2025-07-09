@@ -1,24 +1,22 @@
 import os
+from dotenv import load_dotenv  # 🌍 Ielādē .env failu
+
+load_dotenv()  # 🌍 Ielādē .env faila saturu vides mainīgajos
+
 import logging
-from dotenv import load_dotenv
 from telegram import Update
-from telegram.constants import ParseMode
 from telegram.ext import (
     Updater,
     CommandHandler,
-    CallbackContext
+    CallbackContext,
 )
-from apscheduler.schedulers.background import BackgroundScheduler
 from crypto import (
     get_analysis,
     get_profit,
     get_strategy,
     get_news,
-    check_alerts
+    check_alerts,
 )
-
-# 🌍 Ielādē .env failu
-load_dotenv()
 
 # Получаем токен из переменных среды (например, Railway Variables)
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -56,7 +54,7 @@ def help_command(update: Update, context: CallbackContext):
         "📰 /news BTC - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "❓ /help – palīdzība",
     )
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(text, parse_mode=MARKDOWN)
 
 def parse_coins(args):
     if not args:
@@ -68,12 +66,12 @@ def parse_coins(args):
 def analyze(update: Update, context: CallbackContext):
     coins = parse_coins(context.args)
     text = get_analysis(coins)
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(text, parse_mode=MARKDOWN)
 
 def profit(update: Update, context: CallbackContext):
     coins = parse_coins(context.args)
     text = get_profit(coins)
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(text, parse_mode=MARKDOWN)
 
 def strategy(update: Update, context: CallbackContext):
     coins = parse_coins(context.args)
@@ -81,7 +79,7 @@ def strategy(update: Update, context: CallbackContext):
         update.message.reply_text("Lūdzu, norādi vismaz vienu monētu, piemēram: /strategy BTC,ETH")
         return
     text = get_strategy(coins)
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(text, parse_mode=MARKDOWN)
 
 def news(update: Update, context: CallbackContext):
     coins = parse_coins(context.args)
@@ -89,7 +87,7 @@ def news(update: Update, context: CallbackContext):
         update.message.reply_text("Lūdzu, norādi monētu, piemēram: /news BTC")
         return
     text = get_news(coins[0])
-    update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    update.message.reply_text(text, parse_mode=MARKDOWN)
 
 def alert(update: Update, context: CallbackContext):
     args = context.args
