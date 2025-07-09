@@ -1,12 +1,15 @@
 import os
+import logging
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from crypto import get_analysis, get_profit, get_strategy
-from dotenv import load_dotenv
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN nav iestatīts. Lūdzu, iestatiet to vides mainīgajā.")
+# Получаем токен из переменных среды (например, Railway Variables)
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
