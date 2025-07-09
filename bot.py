@@ -4,6 +4,7 @@ from dotenv import load_dotenv  # 🌍 Ielādē .env failu
 load_dotenv()  # 🌍 Ielādē .env faila saturu vides mainīgajos
 
 import logging
+import threading
 from telegram import Update
 from telegram.ext import (
     Updater,
