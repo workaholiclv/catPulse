@@ -6,6 +6,9 @@ import os
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
+CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
+CRYPTO_PANIC_API_URL = "https://cryptopanic.com/api/v1/posts/"
+
 # 🔔 Glabā lietotāju uzstādītos cenu brīdinājumus
 alerts = {}
 
@@ -103,25 +106,33 @@ def get_current_price(symbol):
     return data["quotes"]["USD"]["price"]
 
 def get_news(symbol):
-    coin_id = get_coin_id(symbol)
-    if not coin_id:
-        return "Neizdevās ielādēt jaunākās ziņas."
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"
+    }
+    params = {
+        "currencies": symbol.lower(),
+        "filter": "news",
+        "auth_token": CRYPTO_PANIC_API_KEY,
+        "public": "true",
+    }
     try:
-        response = requests.get(f"{COINPAPRIKA_API}/coins/{coin_id}/events")
+        response = requests.get(CRYPTO_PANIC_API_URL, headers=headers, params=params)
         response.raise_for_status()
-        events = response.json()
-        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        # Парādīsim max 5 jaunākos notikumus
-        if not events:
+        data = response.json()
+        results = data.get("results", [])
+        if not results:
             return "Nav jaunāko ziņu."
-        for event in events[:5]:
-            news_text += (
-                f"• {event.get('title', 'Bez virsraksta')}\n"
-                f"  {event.get('description', '')}\n"
-                f"  {event.get('source', '')}\n\n"
-            )
+        
+        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
+        for item in results[:5]:
+            title = item.get("title", "Bez virsraksta")
+            source = item.get("source", "")
+            published_at = item.get("published_at", "")[:10]  # дата в формате YYYY-MM-DD
+            url = item.get("url", "")
+            news_text += f"• [{title}]({url})\n  Avots: {source} | Datums: {published_at}\n\n"
         return news_text
-    except Exception:
+    except Exception as e:
         return "Neizdevās ielādēt jaunākās ziņas."
 
 def get_analysis(coins=None):
