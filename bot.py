@@ -93,7 +93,6 @@ def strategy(update: Update, context: CallbackContext) -> None:
     text = get_strategy(coins)
     update.message.reply_text(text)
 
-
 def news(update: Update, context: CallbackContext) -> None:
     coins = context.args
     if not coins:
@@ -102,14 +101,11 @@ def news(update: Update, context: CallbackContext) -> None:
     text = get_news(coins[0])
     update.message.reply_text(text)
 
-
-def setalert_command(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
+def setalert_command(update: Update, context: CallbackContext):
+    user_id = update.message.chat_id
     args = context.args
     if len(args) < 2:
-        update.message.reply_text(
-            "Lūdzu, izmanto: /setalert COIN PRICE (piem., /setalert BTC 50000)"
-        )
+        update.message.reply_text("Lūdzu, izmanto: /setalert COIN PRICE (piem., /setalert BTC 50000)")
         return
     coin = args[0].upper()
     try:
@@ -118,21 +114,14 @@ def setalert_command(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("Lūdzu, ievadi derīgu cenu, piemēram, 50000")
         return
 
-    alerts = context.bot_data.get("alerts", {})
-    add_alert(alerts, user_id, coin, price)
-    context.bot_data["alerts"] = alerts
-    save_alerts(alerts)
-
+    add_alert(user_id, coin, price)  # здесь вызываем функцию из crypto.py
     update.message.reply_text(f"✅ Brīdinājums iestatīts: {coin} pie {price} USD")
 
-
-def removealert_command(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
+def removealert_command(update: Update, context: CallbackContext):
+    user_id = update.message.chat_id
     args = context.args
     if len(args) < 2:
-        update.message.reply_text(
-            "Lūdzu, izmanto: /removealert COIN PRICE (piem., /removealert BTC 50000)"
-        )
+        update.message.reply_text("Lūdzu, izmanto: /removealert COIN PRICE")
         return
     coin = args[0].upper()
     try:
@@ -141,14 +130,21 @@ def removealert_command(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("Lūdzu, ievadi derīgu cenu.")
         return
 
-    alerts = context.bot_data.get("alerts", {})
-    removed = remove_alert(alerts, user_id, coin, price)
-    if removed:
-        context.bot_data["alerts"] = alerts
-        save_alerts(alerts)
-        update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
-    else:
+    # Получаем список alert'ов пользователя до удаления
+    user_alerts_before = alerts.get(str(user_id), [])
+    count_before = len(user_alerts_before)
+
+    # Удаляем alert
+    remove_alert(user_id, coin, price)
+
+    # Получаем список после удаления
+    user_alerts_after = alerts.get(str(user_id), [])
+    count_after = len(user_alerts_after)
+
+    if count_before == count_after:
         update.message.reply_text("⚠️ Šāds brīdinājums netika atrasts.")
+    else:
+        update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
 
 
 def error(update: Update, context: CallbackContext) -> None:
