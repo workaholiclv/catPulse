@@ -2,16 +2,13 @@ import os
 import threading
 import time
 import logging
-import asyncio
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
-    Application,
+    Updater,
     CommandHandler,
-    ContextTypes,
+    CallbackContext,
 )
-from telegram.ext.application import Application
 from crypto import (
     get_top_coins,
     get_analysis,
@@ -40,8 +37,8 @@ if not TOKEN:
 
 # --- Команды ---
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(
         "👋 Sveiki! Esmu kripto-kaķis🐾, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
         "📌 *Pieejamās komandas:*\n"
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
@@ -55,8 +52,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode='Markdown'
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+def help_command(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(
         "📌 *Pieejamās komandas:*\n"
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
         "💰 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
@@ -69,64 +66,63 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode='Markdown'
     )
 
-async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def analyze(update: Update, context: CallbackContext) -> None:
     coins = context.args
     if not coins:
         coins = get_top_coins(10)
     text = get_analysis(coins)
-    await update.message.reply_text(text)
+    update.message.reply_text(text)
 
-async def profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def profit(update: Update, context: CallbackContext) -> None:
     coins = context.args
     if not coins:
         coins = get_top_coins(10)
     text = calculate_profit(coins)
-    await update.message.reply_text(text)
+    update.message.reply_text(text)
 
-async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def strategy(update: Update, context: CallbackContext) -> None:
     coins = context.args
     if not coins:
-        await update.message.reply_text(
-            "Lūdzu, norādi vismaz vienu monētu pēc komandas, piem., /strategy BTC ETH"
-        )
+        update.message.reply_text("Lūdzu, norādi vismaz vienu monētu pēc komandas, piem., /strategy BTC ETH")
         return
     text = get_strategy(coins)
-    await update.message.reply_text(text)
+    update.message.reply_text(text)
 
-async def news_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def news_command(update: Update, context: CallbackContext) -> None:
     if not context.args:
-        await update.message.reply_text("Lūdzu norādi monētu, piem., /news BTC")
+        update.message.reply_text("Lūdzu norādi monētu, piem., /news BTC")
         return
     symbol = context.args[0]
-    text = await news(symbol)
-    await update.message.reply_text(text)
+    # news в твоём crypto.py должен быть синхронным или если асинхронным - надо адаптировать
+    text = news(symbol)  
+    update.message.reply_text(text)
 
-async def setalert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def setalert_command(update: Update, context: CallbackContext) -> None:
     user_id = update.message.chat_id
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text("Lūdzu, izmanto: /setalert COIN PRICE (piem., /setalert BTC 50000)")
+        update.message.reply_text("Lūdzu, izmanto: /setalert COIN PRICE (piem., /setalert BTC 50000)")
         return
     coin = args[0].upper()
     try:
         price = float(args[1])
     except ValueError:
-        await update.message.reply_text("Lūdzu, ievadi derīgu cenu, piemēram, 50000")
+        update.message.reply_text("Lūdzu, ievadi derīgu cenu, piemēram, 50000")
         return
     add_alert(user_id, coin, price)
-    await update.message.reply_text(f"✅ Brīdinājums iestatīts: {coin} pie {price} USD")
+    update.message.reply_text(f"✅ Brīdinājums iestatīts: {coin} pie {price} USD")
 
-async def removealert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def removealert_command(update: Update, context: CallbackContext) -> None:
     user_id = update.message.chat_id
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text("Lūdzu, izmanto: /removealert COIN PRICE")
+        update.message.reply_text("Lūdzu, izmanto: /removealert COIN PRICE")
         return
     coin = args[0].upper()
     try:
         price = float(args[1])
     except ValueError:
-        await update.message.reply_text("Lūdzu, ievadi derīgu cenu.")
+        update.message.reply_text("Lūdzu, ievadi derīgu cenu.")
         return
 
     alerts = context.bot_data.get("alerts", {})
@@ -136,45 +132,46 @@ async def removealert_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     count_after = len(alerts.get(str(user_id), []))
     if count_before == count_after:
-        await update.message.reply_text("⚠️ Šāds brīdinājums netika atrasts.")
+        update.message.reply_text("⚠️ Šāds brīdinājums netika atrasts.")
     else:
-        await update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
+        update.message.reply_text(f"✅ Brīdinājums par {coin} pie {price} USD noņemts.")
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+def error(update: Update, context: CallbackContext) -> None:
     logger.warning(f"Update {update} caused error: {context.error}")
 
-# Фоновая проверка alert-ов (асинхронная)
-async def alert_checker(app: Application):
+def alert_checker_thread(bot):
     while True:
         try:
-            check_alerts(app.bot)
+            check_alerts(bot)
         except Exception as e:
             logger.error(f"Kļūda alertu pārbaudē: {e}")
-        await asyncio.sleep(60)
+        time.sleep(60)
 
-async def main():
-    application = ApplicationBuilder().token(TOKEN).build()
+def main() -> None:
+    updater = Updater(TOKEN)
+    dispatcher = updater.dispatcher
 
-    application.bot_data["alerts"] = load_alerts() or {}
+    alerts = load_alerts()
+    if alerts is None:
+        alerts = {}
+    dispatcher.bot_data["alerts"] = alerts
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("analyze", analyze))
-    application.add_handler(CommandHandler("profit", profit))
-    application.add_handler(CommandHandler("strategy", strategy))
-    application.add_handler(CommandHandler("news", news_command))
-    application.add_handler(CommandHandler("setalert", setalert_command))
-    application.add_handler(CommandHandler("removealert", removealert_command))
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
+    dispatcher.add_handler(CommandHandler("analyze", analyze))
+    dispatcher.add_handler(CommandHandler("profit", profit))
+    dispatcher.add_handler(CommandHandler("strategy", strategy))
+    dispatcher.add_handler(CommandHandler("news", news_command))
+    dispatcher.add_handler(CommandHandler("setalert", setalert_command))
+    dispatcher.add_handler(CommandHandler("removealert", removealert_command))
 
-    application.add_error_handler(error_handler)
+    dispatcher.add_error_handler(error)
 
-    # Назначаем post_init для запуска alert_checker
-    async def post_init(app: Application):
-        app.create_task(alert_checker(app))
+    thread = threading.Thread(target=alert_checker_thread, args=(updater.bot,), daemon=True)
+    thread.start()
 
-    application.post_init = post_init
-
-    await application.run_polling()
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
