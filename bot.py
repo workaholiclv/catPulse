@@ -1,26 +1,39 @@
 import os
 import threading
 import logging
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
 from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    CallbackContext,
+    MessageHandler,
+    Filters,
+)
+
 from crypto import (
-    get_news,
-    analyze_market,
+    get_top_coins,
+    get_analysis,
     calculate_profit,
     get_strategy,
-    set_alert,
+    get_news,
+    add_alert,
     remove_alert,
-    get_user_alerts,
-    check_alerts
+    check_alerts,
+    load_alerts,
 )
 
 # 🌍 Ielādē .env failu
 load_dotenv()
 
-# 📝 Žurnāls
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+)
 logger = logging.getLogger(__name__)
+
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("Nav iestatīts TELEGRAM_BOT_TOKEN .env failā")
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
@@ -51,98 +64,100 @@ def help_command(update: Update, context: CallbackContext):
         "❓ /help – palīdzība",
     )
 
-# 🗞️ /news komanda
-def news(update: Update, context: CallbackContext) -> None:
-    text = get_news()
+def analyze(update: Update, context: CallbackContext):
+    coins = [c.upper() for c in context.args] if context.args else get_top_coins(10)
+    text = get_analysis(coins)
     update.message.reply_text(text)
 
-# 📈 /analyze komanda
-def analyze(update: Update, context: CallbackContext) -> None:
-    text = analyze_market()
+def profit(update: Update, context: CallbackContext):
+    coins = [c.upper() for c in context.args] if context.args else get_top_coins(10)
+    text = calculate_profit(coins)
     update.message.reply_text(text)
 
-# 💰 /profit komanda
-def profit(update: Update, context: CallbackContext) -> None:
+def strategy(update: Update, context: CallbackContext):
+    if not context.args:
+        update.message.reply_text("Lūdzu, norādi vismaz vienu monētu piemēram:\n/strategy BTC ETH")
+        return
+    coins = [c.upper() for c in context.args]
+    text = get_strategy(coins)
+    update.message.reply_text(text)
+
+def news(update: Update, context: CallbackContext):
+    if not context.args:
+        update.message.reply_text("Lūdzu, norādi monētu piemēram:\n/news BTC")
+        return
+    coin = context.args[0].upper()
+    text = get_news(coin)
+    update.message.reply_text(text)
+
+def alerts_command(update: Update, context: CallbackContext):
+    user_id = str(update.message.from_user.id)
+    user_alerts = context.bot_data.get("alerts", {})
+    alerts_for_user = user_alerts.get(user_id, [])
+    if not alerts_for_user:
+        update.message.reply_text("🚫 Tev nav iestatītu cenu brīdinājumu.")
+        return
+    text = "🔔 Tavi cenu brīdinājumi:\n"
+    for alert in alerts_for_user:
+        text += f"• {alert['coin'].upper()} pie {alert['price']} USD\n"
+    update.message.reply_text(text)
+
+def alert_add(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.message.reply_text("Lūdzu, izmanto formātu: /alert_add monēta cena\nPiemērs: /alert_add BTC 30000")
+        return
+    coin = context.args[0].upper()
     try:
-        args = context.args
-        if len(args) != 2:
-            raise ValueError("Nepareizs parametru skaits.")
-        buy = float(args[0])
-        sell = float(args[1])
-        result = calculate_profit(buy, sell)
-        update.message.reply_text(f"💰 Peļņa: {result}%")
-    except Exception:
-        update.message.reply_text("❌ Lietošana: /profit <buy_price> <sell_price>")
+        price = float(context.args[1])
+    except ValueError:
+        update.message.reply_text("Cena jāievada kā skaitlis, piem. 30000")
+        return
+    user_id = update.message.from_user.id
+    add_alert(user_id, coin, price)
+    update.message.reply_text(f"✅ Brīdinājums iestatīts: {coin} pie {price} USD")
 
-# 🎯 /strategy komanda
-def strategy(update: Update, context: CallbackContext) -> None:
-    text = get_strategy()
-    update.message.reply_text(f"🎯 Stratēģija:\n{text}")
-
-# 🔔 /setalert komanda
-def setalert(update: Update, context: CallbackContext) -> None:
+def alert_remove(update: Update, context: CallbackContext):
+    if len(context.args) != 2:
+        update.message.reply_text("Lūdzu, izmanto formātu: /alert_remove monēta cena\nPiemērs: /alert_remove BTC 30000")
+        return
+    coin = context.args[0].upper()
     try:
-        user_id = update.effective_user.id
-        args = context.args
-        if len(args) != 2:
-            raise ValueError("Nepareizs parametru skaits.")
-        coin = args[0].upper()
-        price = float(args[1])
-        msg = set_alert(user_id, coin, price)
-        update.message.reply_text(f"🔔 {msg}")
-    except Exception:
-        update.message.reply_text("❌ Lietošana: /setalert <coin> <price>")
+        price = float(context.args[1])
+    except ValueError:
+        update.message.reply_text("Cena jāievada kā skaitlis, piem. 30000")
+        return
+    user_id = update.message.from_user.id
+    remove_alert(user_id, coin, price)
+    update.message.reply_text(f"✅ Brīdinājums noņemts: {coin} pie {price} USD")
 
-# ❌ /removealert komanda
-def removealert(update: Update, context: CallbackContext) -> None:
-    try:
-        user_id = update.effective_user.id
-        args = context.args
-        if len(args) != 1:
-            raise ValueError("Nepareizs parametru skaits.")
-        coin = args[0].upper()
-        msg = remove_alert(user_id, coin)
-        update.message.reply_text(f"🗑️ {msg}")
-    except Exception:
-        update.message.reply_text("❌ Lietošana: /removealert <coin>")
-
-# 🔔 /alerts komanda
-def alerts(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    msg = get_user_alerts(user_id)
-    update.message.reply_text(msg)
-
-# ⚠️ Kļūdu apstrāde
-def error(update: object, context: CallbackContext) -> None:
+def error(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} izraisīja kļūdu: {context.error}')
 
-# 🚀 Startē botu
-def main() -> None:
-    token = os.getenv("TELEGRAM_TOKEN")
-    updater = Updater(token)
+def main():
+    load_alerts()
+    updater = Updater(TOKEN)
+
     dispatcher = updater.dispatcher
+    dispatcher.bot_data["alerts"] = alerts
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
-    dispatcher.add_handler(CommandHandler("news", news))
     dispatcher.add_handler(CommandHandler("analyze", analyze))
     dispatcher.add_handler(CommandHandler("profit", profit))
     dispatcher.add_handler(CommandHandler("strategy", strategy))
-    dispatcher.add_handler(CommandHandler("alerts", alerts))
-    dispatcher.add_handler(CommandHandler("setalert", setalert))
-    dispatcher.add_handler(CommandHandler("removealert", removealert))
+    dispatcher.add_handler(CommandHandler("news", news))
+    dispatcher.add_handler(CommandHandler("alerts", alerts_command))
+    dispatcher.add_handler(CommandHandler("alert_add", alert_add))
+    dispatcher.add_handler(CommandHandler("alert_remove", alert_remove))
+
     dispatcher.add_error_handler(error)
 
-    # 🔁 Startē pārbaudes thread
+    # Start alerts checker thread
     thread = threading.Thread(target=check_alerts, args=(updater.bot,), daemon=True)
     thread.start()
 
     updater.start_polling()
     updater.idle()
-
-if __name__ == '__main__':
-    main()
-
 
 if __name__ == "__main__":
     main()
