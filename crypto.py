@@ -105,32 +105,27 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
-def get_news(symbol):
-    headers = {
-        "Accept": "application/json",
-        "Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"
-    }
+def news(symbol):
+    headers = {"Authorization": f"Bearer {CRYPTO_PANIC_API_KEY}"}
     params = {
         "currencies": symbol.lower(),
-        "filter": "news",
+        "filter": "news",  # или "hot", по желанию
         "auth_token": CRYPTO_PANIC_API_KEY,
-        "public": "true",
     }
     try:
         response = requests.get(CRYPTO_PANIC_API_URL, headers=headers, params=params)
         response.raise_for_status()
         data = response.json()
-        results = data.get("results", [])
-        if not results:
-            return "Nav jaunāko ziņu."
-        
-        news_text = f"📰 Jaunākās ziņas par {symbol.upper()}:\n\n"
-        for item in results[:5]:
-            title = item.get("title", "Bez virsraksta")
-            source = item.get("source", "")
-            published_at = item.get("published_at", "")[:10]  # дата в формате YYYY-MM-DD
-            url = item.get("url", "")
-            news_text += f"• [{title}]({url})\n  Avots: {source} | Datums: {published_at}\n\n"
+        posts = data.get("results", [])
+        if not posts:
+            return f"📰 Nav jaunāko ziņu par {symbol}."
+
+        news_text = f"📰 Jaunākās ziņas par {symbol}:\n\n"
+        for post in posts[:5]:  # максимум 5 новостей
+            title = post.get("title", "Bez virsraksta")
+            source = post.get("source", {}).get("title", "")
+            url = post.get("url", "")
+            news_text += f"• {title}\n  Avots: {source}\n  {url}\n\n"
         return news_text
     except Exception as e:
         return "Neizdevās ielādēt jaunākās ziņas."
