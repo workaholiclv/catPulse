@@ -152,13 +152,12 @@ def main():
 
     application.add_error_handler(error_handler)
 
-    # Запуск фоновой проверки алертов
-    async def post_init(app: Application):
+async def post_init(app: Application):
     app.create_task(alert_checker(app))
 
 application.post_init = post_init
 
-    application.run_polling()
+application.run_polling()
 
 if __name__ == "__main__":
     main()
