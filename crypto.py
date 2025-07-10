@@ -16,7 +16,7 @@ def escape_markdown(text):
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
-NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
+FMP_API_KEY = os.getenv("FMP_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 alerts = {}
@@ -114,32 +114,29 @@ def get_current_price(symbol):
     return data["quotes"]["USD"]["price"]
 
 def news(symbol, api_key):
-    url = "https://newsdata.io/api/1/crypto"
+    url = "https://financialmodelingprep.com/api/v3/cryptocurrency-news"
     params = {
-        "apikey": api_key,
-        "coin": symbol.lower(),
-        "language": "en",
-        "page": 1
+        "limit": 10,
+        "apikey": api_key
     }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        results = data.get("results", [])
-        if not results:
-            return f"Šobrīd nav jaunumu par {symbol}."
-
-        news_list = []
-        for item in results[:5]:
-            title = item.get("title", "Bez nosaukuma")
-            link = item.get("link", "")
-            title_escaped = escape_markdown(title)
-            news_list.append(f"• [{title_escaped}]({link})")
-
-        return "\n".join(news_list)
-
-    except Exception as e:
-        return f"Kļūda iegūstot ziņas: {e}"
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    data = response.json()
+    news_list = []
+    for item in data:
+        title = item.get("title", "Bez nosaukuma")
+        text = item.get("text", "")
+        published_date = item.get("publishedDate", "")
+        site = item.get("site", "")
+        url = item.get("url", "")
+        # Фильтрация новостей по символу (пример: проверяем есть ли символ в заголовке)
+        if symbol.lower() in title.lower():
+            news_list.append(f"• [{title}]({url}) - {site}")
+        if len(news_list) >= 5:
+            break
+    if not news_list:
+        return f"Šobrīd nav jaunumu par {symbol}."
+    return "\n".join(news_list)
 
 def get_analysis(coins=None):
     if not coins:
@@ -202,7 +199,7 @@ def news_command(update, context):
     chat_id = update.effective_chat.id
     try:
         symbol = context.args[0].upper() if context.args else "XRP"
-        news_text = news(symbol, NEWSDATA_API_KEY)
+        news_text = news(symbol, FMP_API_KEY)
         context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception as e:
         context.bot.send_message(chat_id=chat_id, text=f"Kļūda: {e}")
