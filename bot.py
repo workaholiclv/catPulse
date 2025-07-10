@@ -1,4 +1,5 @@
 import os
+print("🔍 DEBUG: CRYPTOPANIC_API_KEY =", os.getenv("CRYPTOPANIC_API_KEY"))
 import threading
 import time
 import logging
