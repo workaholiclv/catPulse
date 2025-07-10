@@ -130,12 +130,18 @@ def news(symbol):
             title = post.get("title", "Bez nosaukuma")
             source = post.get("source", {}).get("title", "")
             link = post.get("url", "")
-            title_escaped = escape_markdown(title)
-            source_escaped = escape_markdown(source)
+
+            def esc(text):
+                return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
+
+            title_escaped = esc(title)
+            source_escaped = esc(source)
+
             if link:
-                news_texts.append(f"• [{title_escaped}]({link}) ({source_escaped})")
+                news_texts.append(f"• [{title_escaped}]({link}) – _{source_escaped}_")
             else:
-                news_texts.append(f"• {title_escaped} ({source_escaped})")
+                news_texts.append(f"• {title_escaped} – _{source_escaped}_")
+
         return "\n".join(news_texts)
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
