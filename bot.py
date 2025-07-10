@@ -1,8 +1,10 @@
 import os
+from dotenv import load_dotenv
+load_dotenv() 
+
 import threading
 import time
 import logging
-from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
     Updater,
@@ -23,8 +25,6 @@ from crypto import (
     get_current_price,
 )
 
-# Загрузка .env
-load_dotenv()
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
