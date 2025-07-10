@@ -4,16 +4,23 @@ import requests
 import json
 import time
 import os
+import re
+from telegram.ext import Updater, CommandHandler
+from telegram import ParseMode
+
+def escape_markdown(text):
+    escape_chars = r'[_*\[\]()\\]'
+    return re.sub(escape_chars, lambda match: '\\' + match.group(0), text)
 
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
 CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not CRYPTO_PANIC_API_KEY:
     raise ValueError("❌ CRYPTOPANIC_API_KEY nav iestatīts .env vai Railway vidē.")
 
-# 🔔 Glabā lietotāju uzstādītos cenu brīdinājumus
 alerts = {}
 
 def load_alerts():
@@ -46,7 +53,6 @@ def remove_alert(user_id, coin, price):
         save_alerts()
 
 def check_alerts(bot):
-    """Pārbauda alertus un sūta paziņojumus."""
     while True:
         for user_id, user_alerts in list(alerts.items()):
             for alert in user_alerts[:]:
@@ -65,7 +71,7 @@ def check_alerts(bot):
             if not user_alerts:
                 del alerts[user_id]
         save_alerts()
-        time.sleep(900)  # 15 minūtes
+        time.sleep(900)
 
 def get_top_coins(limit=10):
     try:
@@ -123,8 +129,13 @@ def news(symbol):
         for post in posts[:5]:
             title = post.get("title", "Bez nosaukuma")
             source = post.get("source", {}).get("title", "")
-            news_texts.append(f"• {title} ({source})")
-
+            link = post.get("url", "")
+            title_escaped = escape_markdown(title)
+            source_escaped = escape_markdown(source)
+            if link:
+                news_texts.append(f"• [{title_escaped}]({link}) ({source_escaped})")
+            else:
+                news_texts.append(f"• {title_escaped} ({source_escaped})")
         return "\n".join(news_texts)
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
@@ -185,3 +196,29 @@ def get_strategy(coins):
             f"• Izmanto stop loss (trailing stop) — aizsardzības mehānisms, kas pārdod, ja cena sāk krist pēc kāpuma.\n\n"
         )
     return output
+
+def news_command(update, context):
+    chat_id = update.effective_chat.id
+    if context.args:
+        symbol = context.args[0].upper()
+    else:
+        symbol = "XRP"
+    news_text = news(symbol)
+    context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN)
+
+def main():
+    if not TELEGRAM_BOT_TOKEN:
+        raise ValueError("❌ TELEGRAM_BOT_TOKEN nav iestatīts!")
+
+    updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    # Команда /news
+    dp.add_handler(CommandHandler("news", news_command))
+
+    print("🗞️🐈‍⬛ Kaķis lasa ziņas...")
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
