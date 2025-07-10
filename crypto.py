@@ -115,13 +115,14 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
+import re
+
 def news(symbol):
     url = f"https://cryptopanic.com/api/v1/posts/?auth_token={CRYPTO_PANIC_API_KEY}&currencies={symbol}&kind=news"
     try:
         response = requests.get(url)
         response.raise_for_status()
-        data = response.json()
-        posts = data.get("results", [])
+        posts = response.json().get("results", [])
         if not posts:
             return f"Nav jaunumu par {symbol} šobrīd."
 
@@ -131,18 +132,19 @@ def news(symbol):
             source = post.get("source", {}).get("title", "")
             link = post.get("url", "")
 
-            def esc(text):
-                return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
+            print(f"DEBUG news — title: {title}\nlink: {link}\n")  # Отладка
 
+            esc = lambda text: re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
             title_escaped = esc(title)
             source_escaped = esc(source)
 
-            if link:
+            if link and link.startswith("http"):
                 news_texts.append(f"• [{title_escaped}]({link}) – _{source_escaped}_")
             else:
                 news_texts.append(f"• {title_escaped} – _{source_escaped}_")
 
         return "\n".join(news_texts)
+
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
 
