@@ -123,15 +123,19 @@ def news(symbol):
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
+        articles = data.get("Data", [])
+        if not articles:
+            return f"Šobrīd nav jaunumu par {symbol}."
+
         news_list = []
-        for item in data.get("Data", [])[:5]:
+        for item in articles[:5]:
             title = item.get("title", "Bez nosaukuma")
             link = item.get("url", "")
             title_escaped = escape_markdown(title)
             news_list.append(f"• [{title_escaped}]({link})")
-        if not news_list:
-            return f"Šobrīd nav jaunumu par {symbol}."
+
         return "\n".join(news_list)
+
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
 
@@ -195,8 +199,8 @@ def get_strategy(coins):
 def news_command(update, context):
     chat_id = update.effective_chat.id
     try:
-        symbol = context.args[0].upper() if context.args else "XRP"
-        news_text = news_cryptocompare(symbol)
+        symbol = context.args[0].upper() if context.args else "BTC"
+        news_text = news(symbol)  # теперь передаётся только один аргумент
         context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception as e:
         context.bot.send_message(chat_id=chat_id, text=f"Kļūda: {e}")
