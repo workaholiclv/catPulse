@@ -115,34 +115,39 @@ def get_current_price(symbol):
 
 def news(symbol):
     url = "https://min-api.cryptocompare.com/data/v2/news/"
-    params = {"lang": "EN"}
-
+    params = {
+        "categories": symbol.upper(),
+        "lang": "EN"
+    }
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         articles = data.get("Data", [])
-
-        # Фильтруем вручную
-        filtered = [
-            a for a in articles
-            if symbol.lower() in (a.get("title", "") + a.get("body", "")).lower()
-        ]
-
-        if not filtered:
+        if not articles:
             return f"Šobrīd nav jaunumu par {symbol}."
 
         news_list = []
-        for item in filtered[:5]:
-            title = escape_markdown(item.get("title", "Bez nosaukuma"), version)
-            link = item.get("url", "")
-            news_list.append(f"• [{title}]({link})")
+        for item in articles[:5]:
+            try:
+                title_raw = item.get("title", "Bez nosaukuma")
+                title_escaped = escape_markdown(title_raw)
+                url_link = item.get("url", "")
+                # Формируем markdown ссылку, если есть url
+                if url_link:
+                    news_list.append(f"• [{title_escaped}]({url_link})")
+                else:
+                    news_list.append(f"• {title_escaped}")
+            except Exception as e:
+                print(f"Error escaping title or formatting news item: {e}")
+                news_list.append(item.get("title", "Bez nosaukuma"))
 
         return "\n".join(news_list)
 
     except Exception as e:
-        return f"Kļūda iegūstot ziņas: {e}"
-
+        print(f"Kļūda iegūstot ziņas: {e}")
+        return "Kļūda apstrādājot ziņas."
+        
 def get_analysis(coins=None):
     if not coins:
         coins = get_top_coins(10)
@@ -203,11 +208,12 @@ def get_strategy(coins):
 def news_command(update, context):
     chat_id = update.effective_chat.id
     try:
-        symbol = context.args[0].upper() if context.args else "BTC"
-        news_text = news(symbol)  # теперь передаётся только один аргумент
+        symbol = context.args[0].upper() if context.args else "CRYPTO"
+        news_text = news(symbol)
         context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception as e:
-        context.bot.send_message(chat_id=chat_id, text=f"Kļūda: {e}")
+        print(f"Ошибка в news_command: {e}")
+        context.bot.send_message(chat_id=chat_id, text="Kļūda apstrādājot ziņas.")
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
