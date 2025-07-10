@@ -95,7 +95,7 @@ def news_command(update: Update, context: CallbackContext) -> None:
         return
     symbol = context.args[0]
     # news в твоём crypto.py должен быть синхронным или если асинхронным - надо адаптировать
-    text = news(symbol, NEWSDATA_API_KEY)
+    text = news(symbol)
     update.message.reply_text(text)
 
 def setalert_command(update: Update, context: CallbackContext) -> None:
