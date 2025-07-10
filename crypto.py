@@ -10,8 +10,8 @@ from telegram.ext import Updater, CommandHandler
 from telegram import ParseMode
 
 def escape_markdown(text):
-    escape_chars = r'[_*\[\]()\\]'
-    return re.sub(escape_chars, lambda match: '\\' + match.group(0), text)
+    escape_chars = r'_*[]()~`>#+-=|{}.!\\'
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
