@@ -18,9 +18,6 @@ ALERTS_FILE = "alerts.json"
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-if not CRYPTO_PANIC_API_KEY:
-    raise ValueError("❌ CRYPTOPANIC_API_KEY nav iestatīts .env vai Railway vidē.")
-
 alerts = {}
 
 def load_alerts():
