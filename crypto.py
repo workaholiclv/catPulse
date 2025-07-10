@@ -118,7 +118,6 @@ def news(symbol, api_key):
     params = {
         "apikey": api_key,
         "q": symbol,
-        "category": "crypto",
         "language": "en",
         "page": 1
     }
@@ -135,7 +134,6 @@ def news(symbol, api_key):
             title = item.get("title", "Bez nosaukuma")
             link = item.get("link", "")
             title_escaped = escape_markdown(title)
-            # Ссылка в markdown не экранируется, но если нужно — можно
             news_list.append(f"• [{title_escaped}]({link})")
 
         return "\n".join(news_list)
