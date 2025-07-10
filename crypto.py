@@ -127,20 +127,19 @@ def news(symbol):
         if not articles:
             return f"Šobrīd nav jaunumu par {symbol}."
 
-        news_list = []
-        for item in articles[:5]:
-            try:
-                title_raw = item.get("title", "Bez nosaukuma")
-                title_escaped = escape_markdown(title_raw)
-                url_link = item.get("url", "")
-                # Формируем markdown ссылку, если есть url
-                if url_link:
-                    news_list.append(f"• [{title_escaped}]({url_link})")
-                else:
-                    news_list.append(f"• {title_escaped}")
-            except Exception as e:
-                print(f"Error escaping title or formatting news item: {e}")
-                news_list.append(item.get("title", "Bez nosaukuma"))
+        # Сортируем новости по дате публикации — от свежих к старым
+        articles_sorted = sorted(articles, key=lambda x: x.get("published_on", 0), reverse=True)
+
+        news_list = [f"📰 *Top 5 ziņas par {escape_markdown(symbol)}:*"]
+        for item in articles_sorted[:5]:
+            title_raw = item.get("title", "Bez nosaukuma")
+            url_link = item.get("url", "")
+            title_escaped = escape_markdown(title_raw)
+
+            if url_link:
+                news_list.append(f"• 📰 [{title_escaped}]({url_link})")
+            else:
+                news_list.append(f"• 📰 {title_escaped}")
 
         return "\n".join(news_list)
 
