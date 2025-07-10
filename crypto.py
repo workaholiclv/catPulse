@@ -134,7 +134,7 @@ def news(symbol):
 
         news_list = []
         for item in filtered[:5]:
-            title = escape_markdown(item.get("title", "Bez nosaukuma"), version=2)
+            title = escape_markdown(item.get("title", "Bez nosaukuma"), version)
             link = item.get("url", "")
             news_list.append(f"• [{title}]({link})")
 
