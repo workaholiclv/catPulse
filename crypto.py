@@ -15,7 +15,7 @@ def escape_markdown(text):
 COINPAPRIKA_API = "https://api.coinpaprika.com/v1"
 ALERTS_FILE = "alerts.json"
 
-CRYPTO_PANIC_API_KEY = os.getenv("CRYPTOPANIC_API_KEY")
+NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 if not CRYPTO_PANIC_API_KEY:
@@ -117,33 +117,37 @@ def get_current_price(symbol):
 
 import re
 
-def news(symbol):
-    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={CRYPTO_PANIC_API_KEY}&currencies={symbol}&kind=news"
+import requests
+
+def news(symbol, api_key):
+    url = "https://newsdata.io/api/1/news"
+    params = {
+        "apikey": api_key,
+        "q": symbol,
+        "category": "crypto",
+        "language": "en",
+        "page": 1
+    }
     try:
-        response = requests.get(url)
+        response = requests.get(url, params=params)
         response.raise_for_status()
-        posts = response.json().get("results", [])
-        if not posts:
-            return f"Nav jaunumu par {symbol} šobrīd."
+        data = response.json()
+        results = data.get("results", [])
+        if not results:
+            return f"Šobrīd nav jaunumu par {symbol}."
 
-        news_texts = []
-        for post in posts[:5]:
-            title = post.get("title", "Bez nosaukuma")
-            source = post.get("source", {}).get("title", "")
-            link = post.get("url", "")
+        def esc(text):
+            return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
 
-            print(f"DEBUG news — title: {title}\nlink: {link}\n")  # Отладка
-
-            esc = lambda text: re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
+        news_list = []
+        for item in results[:5]:
+            title = item.get("title", "Bez nosaukuma")
+            link = item.get("link", "")
             title_escaped = esc(title)
-            source_escaped = esc(source)
+            link_escaped = esc(link)
+            news_list.append(f"• [{title_escaped}]({link_escaped})")
 
-            if link and link.startswith("http"):
-                news_texts.append(f"• [{title_escaped}]({link}) – _{source_escaped}_")
-            else:
-                news_texts.append(f"• {title_escaped} – _{source_escaped}_")
-
-        return "\n".join(news_texts)
+        return "\n".join(news_list)
 
     except Exception as e:
         return f"Kļūda iegūstot ziņas: {e}"
@@ -212,7 +216,7 @@ def news_command(update, context):
     else:
         symbol = "XRP"
     news_text = news(symbol)
-    context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN)
+    context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MarkDownV2)
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
