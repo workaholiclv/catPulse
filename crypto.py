@@ -5,6 +5,7 @@ import json
 import time
 import os
 import re
+
 from telegram.ext import Updater, CommandHandler
 from telegram import ParseMode
 
@@ -112,14 +113,10 @@ def get_current_price(symbol):
         return None
     return data["quotes"]["USD"]["price"]
 
-import re
-
-import requests
-
-def news(symbol, NEWSDATA_API_KEY):
+def news(symbol, api_key):
     url = "https://newsdata.io/api/1/news"
     params = {
-        "apikey": NEWSDATA_API_KEY,
+        "apikey": api_key,
         "q": symbol,
         "category": "crypto",
         "language": "en",
@@ -133,16 +130,13 @@ def news(symbol, NEWSDATA_API_KEY):
         if not results:
             return f"Šobrīd nav jaunumu par {symbol}."
 
-        def esc(text):
-            return re.sub(r'([_*\[\]()~`>#+\-=|{}.!\\])', r'\\\1', text)
-
         news_list = []
         for item in results[:5]:
             title = item.get("title", "Bez nosaukuma")
             link = item.get("link", "")
-            title_escaped = esc(title)
-            link_escaped = esc(link)
-            news_list.append(f"• [{title_escaped}]({link_escaped})")
+            title_escaped = escape_markdown(title)
+            # Ссылка в markdown не экранируется, но если нужно — можно
+            news_list.append(f"• [{title_escaped}]({link})")
 
         return "\n".join(news_list)
 
@@ -209,11 +203,7 @@ def get_strategy(coins):
 def news_command(update, context):
     chat_id = update.effective_chat.id
     try:
-        if context.args:
-            symbol = context.args[0].upper()
-        else:
-            symbol = "XRP"
-
+        symbol = context.args[0].upper() if context.args else "XRP"
         news_text = news(symbol, NEWSDATA_API_KEY)
         context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception as e:
