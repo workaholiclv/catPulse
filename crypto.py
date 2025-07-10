@@ -214,7 +214,7 @@ def news_command(update, context):
         else:
             symbol = "XRP"
 
-        news_text = news_newsdata(symbol, NEWSDATA_API_KEY)
+        news_text = news(symbol, NEWSDATA_API_KEY)
         context.bot.send_message(chat_id=chat_id, text=news_text, parse_mode=ParseMode.MARKDOWN_V2)
     except Exception as e:
         context.bot.send_message(chat_id=chat_id, text=f"Kļūda: {e}")
