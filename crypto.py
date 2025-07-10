@@ -116,10 +116,10 @@ import re
 
 import requests
 
-def news(symbol, api_key):
+def news(symbol, NEWSDATA_API_KEY):
     url = "https://newsdata.io/api/1/news"
     params = {
-        "apikey": api_key,
+        "apikey": NEWSDATA_API_KEY,
         "q": symbol,
         "category": "crypto",
         "language": "en",
