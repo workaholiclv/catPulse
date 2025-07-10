@@ -38,13 +38,13 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         "👋 Sveiki! Esmu kripto-kaķis🐾, kas palīdzēs tev ar monētu 🪙 analīzi.\n\n"
         "📌 *Pieejamās komandas:*\n"
+        "📰 /news BTC - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
         "💰 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
         "📈 /strategy – investīciju stratēģijas, jānorāda monētas (piem. BTC,ETH)\n"
         "🔔 /alerts BTC > BTC - iestata cenu, pie kuras saņemt paziņojumu (piem., /alerts BTC 65000)\n"
         "🆕 /setalert BTC 70000 - Jauns brīdinājums\n"
         "❌ /removealert BTC 70000 - Dzēst brīdinājumu \n"
-        "📰 /news BTC - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "❓ /help – palīdzība",
         parse_mode='Markdown'
     )
@@ -52,13 +52,13 @@ def start(update: Update, context: CallbackContext) -> None:
 def help_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         "📌 *Pieejamās komandas:*\n"
+        "📰 /news BTC - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "📈 /analyze – analīze par monētām vai top trendiem, ja nav norādīts\n"
         "💰 /profit – ieteikumi LONG/SHORT, vai top trendi, ja nav norādīts\n"
         "📈 /strategy – investīciju stratēģijas, jānorāda monētas (piem. BTC,ETH)\n"
         "🔔 /alerts BTC > BTC - iestata cenu, pie kuras saņemt paziņojumu (piem., /alerts BTC 65000)\n"
         "🆕 /setalert BTC 70000 - Jauns brīdinājums\n"
         "❌ /removealert BTC 70000 - Dzēst brīdinājumu \n"
-        "📰 /news BTC - rāda jaunākās ziņas par monētu (piem., /news BTC)\n"
         "❓ /help – palīdzība",
         parse_mode='Markdown'
     )
