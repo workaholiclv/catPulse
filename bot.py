@@ -32,6 +32,10 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     raise ValueError("Nav iestatīts TELEGRAM_BOT_TOKEN .env failā")
 
+NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
+if not TOKEN:
+    raise ValueError("Nav iestatīts NEWSDATA_API_KEY .env failā")
+
 # --- Команды ---
 
 def start(update: Update, context: CallbackContext) -> None:
