@@ -127,20 +127,18 @@ def news(symbol):
         if not articles:
             return f"Šobrīd nav jaunumu par {symbol}."
 
-        # Сортируем новости по дате публикации — от свежих к старым
         articles_sorted = sorted(articles, key=lambda x: x.get("published_on", 0), reverse=True)
 
-        news_list = [f"*💰 Top 5 ziņas par {escape_markdown(symbol)}:*"]
+        news_list = [f"📰 *Top 5 ziņas par {escape_markdown(symbol)}:*"]
         for item in articles_sorted[:5]:
             title_raw = item.get("title", "Bez nosaukuma")
             url_link = item.get("url", "")
             title_escaped = escape_markdown(title_raw)
 
             if url_link:
-                # Вся строка с эмодзи и заголовком — активная ссылка в MarkdownV2
-                news_list.append(f"• [📰 {title_escaped}]({url_link})")
+                news_list.append(f"📰 [{title_escaped}]({url_link})\n")
             else:
-                news_list.append(f"• 📰 {title_escaped}")
+                news_list.append(f"📰 {title_escaped}\n")
 
         return "\n".join(news_list)
 
