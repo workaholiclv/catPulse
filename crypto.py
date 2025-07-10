@@ -115,24 +115,28 @@ def get_current_price(symbol):
 
 def news(symbol):
     url = "https://min-api.cryptocompare.com/data/v2/news/"
-    params = {
-        "categories": symbol.upper(),
-        "lang": "EN"
-    }
+    params = {"lang": "EN"}
+
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         articles = data.get("Data", [])
-        if not articles:
+
+        # Фильтруем вручную
+        filtered = [
+            a for a in articles
+            if symbol.lower() in (a.get("title", "") + a.get("body", "")).lower()
+        ]
+
+        if not filtered:
             return f"Šobrīd nav jaunumu par {symbol}."
 
         news_list = []
-        for item in articles[:5]:
-            title = item.get("title", "Bez nosaukuma")
+        for item in filtered[:5]:
+            title = escape_markdown(item.get("title", "Bez nosaukuma"), version=2)
             link = item.get("url", "")
-            title_escaped = escape_markdown(title)
-            news_list.append(f"• [{title_escaped}]({link})")
+            news_list.append(f"• [{title}]({link})")
 
         return "\n".join(news_list)
 
