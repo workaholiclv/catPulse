@@ -114,10 +114,10 @@ def get_current_price(symbol):
     return data["quotes"]["USD"]["price"]
 
 def news(symbol, api_key):
-    url = "https://newsdata.io/api/1/news"
+    url = "https://newsdata.io/api/1/crypto"
     params = {
         "apikey": api_key,
-        "q": symbol,
+        "coin": symbol.lower(),
         "language": "en",
         "page": 1
     }
